@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Default permissions for TradeWars",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "shell:allow-open"
+  ]
+}
