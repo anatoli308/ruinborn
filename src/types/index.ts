@@ -37,3 +37,10 @@ export interface TradeOrder {
   pricePerUnit: number;
   tick: number;
 }
+
+export interface OtherPlayer {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+}

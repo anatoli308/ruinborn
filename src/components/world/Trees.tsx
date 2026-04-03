@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 /** Scatter low-poly trees across the map, avoiding trading post positions */
-export default function Trees({ avoidPositions }: { avoidPositions: { x: number; z: number }[] }) {
+const Trees = memo(function Trees({ avoidPositions }: { avoidPositions: { x: number; z: number }[] }) {
   const trees = useMemo(() => {
     const result: { x: number; z: number; scale: number; color: string }[] = [];
     for (let i = 0; i < 100; i++) {
@@ -34,4 +34,6 @@ export default function Trees({ avoidPositions }: { avoidPositions: { x: number;
       ))}
     </>
   );
-}
+});
+
+export default Trees;

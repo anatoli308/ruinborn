@@ -1,26 +1,37 @@
 ﻿import { create } from "zustand";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import type { Commodity, MarketEvent, TradeOrder, TradingPost } from "../types";
+import { wsTransport } from "../services/wsTransport";
+import type { Commodity, MarketEvent, OtherPlayer, TradeOrder, TradingPost } from "../types";
 
-// ── Server State Shape (mirrors Rust GameState) ─────────────
+// ── Server Snapshot Shape (mirrors Rust PlayerSnapshot) ─────
 
-interface ServerGameState {
+interface ServerPlayerSnapshot {
   tick: number;
-  paused: boolean;
-  speed: number;
-  player_x: number;
-  player_z: number;
-  gold: number;
-  inventory: Record<string, number>;
-  reputation: number;
+  player: ServerPlayer;
+  other_players: ServerOtherPlayer[];
   commodities: ServerCommodity[];
   trading_posts: ServerTradingPost[];
   active_events: ServerMarketEvent[];
-  trade_history: ServerTradeOrder[];
+}
+
+interface ServerPlayer {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  gold: number;
+  inventory: Record<string, number>;
+  reputation: number;
   nearest_post_id: string | null;
   show_trade_panel: boolean;
+  trade_history: ServerTradeOrder[];
   notification: string;
+}
+
+interface ServerOtherPlayer {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
 }
 
 interface ServerCommodity {
@@ -61,13 +72,21 @@ interface ServerTradeOrder {
   tick: number;
 }
 
+interface ServerMessage {
+  type: string;
+  snapshot?: ServerPlayerSnapshot;
+  success?: boolean;
+  message?: string;
+  player_id?: string;
+}
+
 // ── Frontend Store (thin client) ─────────────────────────────
 
 interface GameStore {
-  // State (read-only mirror of Rust)
+  // State (read-only mirror of server)
   tick: number;
-  paused: boolean;
-  speed: number;
+  playerId: string;
+  playerName: string;
   playerX: number;
   playerZ: number;
   gold: number;
@@ -77,32 +96,31 @@ interface GameStore {
   tradingPosts: TradingPost[];
   activeEvents: MarketEvent[];
   tradeHistory: TradeOrder[];
+  otherPlayers: OtherPlayer[];
   nearestPostId: string | null;
   showTradePanel: boolean;
   notification: string;
   connected: boolean;
 
-  // Actions (send commands to Rust)
+  // Actions (send commands via WebSocket)
   sendMove: (dx: number, dz: number) => void;
   sendTrade: (commodityId: string, type: "buy" | "sell", quantity: number) => Promise<{ success: boolean; message: string }>;
   sendToggleTradePanel: () => void;
   sendCloseTradePanel: () => void;
-  sendSetPaused: (paused: boolean) => void;
-  sendSetSpeed: (speed: number) => void;
-  applyServerState: (s: ServerGameState) => void;
-  initListener: () => void;
+  initConnection: (playerName: string, serverUrl?: string) => void;
 }
 
-function mapServerState(s: ServerGameState) {
+function mapSnapshot(s: ServerPlayerSnapshot) {
   return {
     tick: s.tick,
-    paused: s.paused,
-    speed: s.speed,
-    playerX: s.player_x,
-    playerZ: s.player_z,
-    gold: s.gold,
-    inventory: s.inventory,
-    reputation: s.reputation,
+    playerX: s.player.x,
+    playerZ: s.player.z,
+    gold: s.player.gold,
+    inventory: s.player.inventory,
+    reputation: s.player.reputation,
+    nearestPostId: s.player.nearest_post_id,
+    showTradePanel: s.player.show_trade_panel,
+    notification: s.player.notification,
     commodities: s.commodities.map((c) => ({
       id: c.id,
       name: c.name,
@@ -134,23 +152,30 @@ function mapServerState(s: ServerGameState) {
       })),
       remainingTicks: e.remaining_ticks,
     })) as MarketEvent[],
-    tradeHistory: s.trade_history.map((t) => ({
+    tradeHistory: s.player.trade_history.map((t) => ({
       commodityId: t.commodity_id,
       type: t.trade_type as "buy" | "sell",
       quantity: t.quantity,
       pricePerUnit: t.price_per_unit,
       tick: t.tick,
     })) as TradeOrder[],
-    nearestPostId: s.nearest_post_id,
-    showTradePanel: s.show_trade_panel,
-    notification: s.notification,
+    otherPlayers: s.other_players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      x: p.x,
+      z: p.z,
+    })) as OtherPlayer[],
   };
 }
 
+// Pending trade promise resolver
+let tradeResolver: ((result: { success: boolean; message: string }) => void) | null = null;
+let connectionInitialized = false;
+
 export const useGameStore = create<GameStore>((set, get) => ({
   tick: 0,
-  paused: false,
-  speed: 1,
+  playerId: "",
+  playerName: "",
   playerX: 0,
   playerZ: 0,
   gold: 10_000,
@@ -160,60 +185,102 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tradingPosts: [],
   activeEvents: [],
   tradeHistory: [],
+  otherPlayers: [],
   nearestPostId: null,
   showTradePanel: false,
   notification: "",
   connected: false,
 
-  applyServerState: (s: ServerGameState) => {
-    set(mapServerState(s));
-  },
+  initConnection: (playerName: string, serverUrl?: string) => {
+    if (connectionInitialized) return;
+    connectionInitialized = true;
 
-  initListener: () => {
-    if (get().connected) return;
-    set({ connected: true });
+    wsTransport.onMessage((data: unknown) => {
+      const msg = data as ServerMessage;
 
-    // Listen for realtime state pushes from Rust tick loop
-    listen<ServerGameState>("game-state", (event) => {
-      set(mapServerState(event.payload));
+      switch (msg.type) {
+        case "welcome":
+          set({
+            playerId: msg.player_id ?? "",
+            playerName,
+            connected: true,
+          });
+          break;
+
+        case "state":
+          if (msg.snapshot) {
+            const mapped = mapSnapshot(msg.snapshot);
+            // Preserve tradingPosts reference if unchanged (avoids Trees re-render)
+            const current = get();
+            if (
+              mapped.tradingPosts.length === current.tradingPosts.length &&
+              mapped.tradingPosts.every(
+                (p, i) =>
+                  p.id === current.tradingPosts[i]?.id &&
+                  p.x === current.tradingPosts[i]?.x &&
+                  p.z === current.tradingPosts[i]?.z
+              )
+            ) {
+              mapped.tradingPosts = current.tradingPosts;
+            }
+            set(mapped);
+          }
+          break;
+
+        case "trade_result":
+          if (tradeResolver) {
+            tradeResolver({
+              success: msg.success ?? false,
+              message: msg.message ?? "",
+            });
+            tradeResolver = null;
+          }
+          break;
+
+        case "error":
+          break;
+      }
     });
 
-    // Fetch initial state
-    invoke<ServerGameState>("get_game_state").then((s) => {
-      set(mapServerState(s));
-    });
+    wsTransport.connect(serverUrl);
+
+    // Wait briefly for connection, then send join
+    const joinInterval = setInterval(() => {
+      if (wsTransport.isConnected()) {
+        clearInterval(joinInterval);
+        wsTransport.send({ cmd: "join", name: playerName });
+      }
+    }, 100);
   },
 
   sendMove: (dx: number, dz: number) => {
-    invoke("move_player", { dx, dz }).catch(console.error);
+    wsTransport.send({ cmd: "move", dx, dz });
   },
 
-  sendTrade: async (commodityId: string, type_: "buy" | "sell", quantity: number) => {
-    try {
-      const result = await invoke<{ success: boolean; message: string }>("execute_trade", {
-        commodityId,
-        tradeType: type_,
+  sendTrade: (commodityId: string, type_: "buy" | "sell", quantity: number) => {
+    return new Promise<{ success: boolean; message: string }>((resolve) => {
+      tradeResolver = resolve;
+      wsTransport.send({
+        cmd: "trade",
+        commodity_id: commodityId,
+        trade_type: type_,
         quantity,
       });
-      return result;
-    } catch (e) {
-      return { success: false, message: String(e) };
-    }
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        if (tradeResolver === resolve) {
+          tradeResolver = null;
+          resolve({ success: false, message: "Server antwortet nicht." });
+        }
+      }, 5000);
+    });
   },
 
   sendToggleTradePanel: () => {
-    invoke("toggle_trade_panel").catch(console.error);
+    wsTransport.send({ cmd: "toggle_trade_panel" });
   },
 
   sendCloseTradePanel: () => {
-    invoke("close_trade_panel").catch(console.error);
-  },
-
-  sendSetPaused: (paused: boolean) => {
-    invoke("set_paused", { paused }).catch(console.error);
-  },
-
-  sendSetSpeed: (speed: number) => {
-    invoke("set_speed", { speed }).catch(console.error);
+    wsTransport.send({ cmd: "close_trade_panel" });
   },
 }));

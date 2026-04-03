@@ -5,7 +5,7 @@ import { useGameStore } from "../../store/gameStore";
 
 const SPEED = 12;
 
-/** Player character with WASD movement — sends inputs to Rust server */
+/** Player character with WASD movement — sends inputs to dedicated server */
 export default function Player() {
   const group = useRef<THREE.Group>(null!);
   const indicator = useRef<THREE.Mesh>(null!);
@@ -13,8 +13,6 @@ export default function Player() {
 
   const sendMove = useGameStore((s) => s.sendMove);
   const sendToggleTradePanel = useGameStore((s) => s.sendToggleTradePanel);
-  const sendSetPaused = useGameStore((s) => s.sendSetPaused);
-  const sendSetSpeed = useGameStore((s) => s.sendSetSpeed);
   const showTradePanel = useGameStore((s) => s.showTradePanel);
 
   // Key listeners (registered once via ref check)
@@ -24,13 +22,6 @@ export default function Player() {
     const onDown = (e: KeyboardEvent) => {
       keys.current[e.code] = true;
       if (e.code === "KeyE") sendToggleTradePanel();
-      if (e.code === "Space") {
-        e.preventDefault();
-        sendSetPaused(!useGameStore.getState().paused);
-      }
-      if (e.code === "Digit1") sendSetSpeed(1);
-      if (e.code === "Digit2") sendSetSpeed(2);
-      if (e.code === "Digit3") sendSetSpeed(5);
     };
     const onUp = (e: KeyboardEvent) => { keys.current[e.code] = false; };
     window.addEventListener("keydown", onDown);

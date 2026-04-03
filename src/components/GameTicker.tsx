@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useGameStore } from "../store/gameStore";
 
-/** Initializes the connection to the Rust server tick loop */
+/** Initializes the WebSocket connection to the dedicated server */
 export default function GameTicker() {
-  const initListener = useGameStore((s) => s.initListener);
+  const initConnection = useGameStore((s) => s.initConnection);
 
   useEffect(() => {
-    initListener();
-  }, [initListener]);
+    initConnection("Spieler");
+  }, [initConnection]);
 
   return null;
 }

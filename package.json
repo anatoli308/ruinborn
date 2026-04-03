@@ -7,14 +7,15 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "server:build": "cargo build --package tradewars-server",
+    "server:run": "cargo run --package tradewars-server",
+    "server:dev": "cargo run --package tradewars-server",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },
   "dependencies": {
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.0.0",
-    "@tauri-apps/api": "^2.0.0",
-    "@tauri-apps/plugin-shell": "^2.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.172.0",

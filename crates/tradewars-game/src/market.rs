@@ -1,6 +1,8 @@
-﻿use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use rand::Rng;
 use std::collections::HashMap;
+
+// ── Data Structures ───────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Commodity {
@@ -57,25 +59,53 @@ pub struct TradeResult {
     pub message: String,
 }
 
-/// Complete authoritative game state - lives only in Rust
+/// Per-player state — each connected player has one
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GameState {
-    pub tick: u64,
-    pub paused: bool,
-    pub speed: f64,
-    pub player_x: f64,
-    pub player_z: f64,
+pub struct PlayerState {
+    pub id: String,
+    pub name: String,
+    pub x: f64,
+    pub z: f64,
     pub gold: f64,
     pub inventory: HashMap<String, u32>,
     pub reputation: u32,
+    pub nearest_post_id: Option<String>,
+    pub show_trade_panel: bool,
+    pub trade_history: Vec<TradeOrder>,
+    pub notification: String,
+}
+
+/// Complete authoritative world state — lives only on the server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameState {
+    pub tick: u64,
     pub commodities: Vec<Commodity>,
     pub trading_posts: Vec<TradingPost>,
     pub active_events: Vec<MarketEvent>,
-    pub trade_history: Vec<TradeOrder>,
-    pub nearest_post_id: Option<String>,
-    pub show_trade_panel: bool,
-    pub notification: String,
+    pub players: HashMap<String, PlayerState>,
 }
+
+/// Snapshot sent to an individual player (their own data + world)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerSnapshot {
+    pub tick: u64,
+    pub player: PlayerState,
+    pub other_players: Vec<OtherPlayer>,
+    pub commodities: Vec<Commodity>,
+    pub trading_posts: Vec<TradingPost>,
+    pub active_events: Vec<MarketEvent>,
+}
+
+/// Minimal data about other players (visible to everyone)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OtherPlayer {
+    pub id: String,
+    pub name: String,
+    pub x: f64,
+    pub z: f64,
+}
+
+// ── Constants ─────────────────────────────────────────────────
 
 struct EventTemplate {
     name: &'static str,
@@ -95,9 +125,12 @@ const EVENT_TEMPLATES: &[EventTemplate] = &[
     EventTemplate { name: "Luxusboom", desc: "Adel verlangt nach Seide!", commodity_id: "silk", supply_mod: 1.0, demand_mod: 1.4 },
 ];
 
-const POST_INTERACTION_RANGE: f64 = 5.0;
-const WORLD_BOUND: f64 = 90.0;
+pub const POST_INTERACTION_RANGE: f64 = 5.0;
+pub const WORLD_BOUND: f64 = 90.0;
 const PRICE_HISTORY_MAX: usize = 60;
+const STARTING_GOLD: f64 = 10_000.0;
+
+// ── World Initialization ──────────────────────────────────────
 
 pub fn create_initial_state() -> GameState {
     let commodities = vec![
@@ -121,24 +154,56 @@ pub fn create_initial_state() -> GameState {
 
     GameState {
         tick: 0,
-        paused: false,
-        speed: 1.0,
-        player_x: 0.0,
-        player_z: 0.0,
-        gold: 10_000.0,
-        inventory: HashMap::new(),
-        reputation: 0,
         commodities,
         trading_posts,
         active_events: Vec::new(),
-        trade_history: Vec::new(),
+        players: HashMap::new(),
+    }
+}
+
+/// Create a new player with starting resources
+pub fn create_player(id: &str, name: &str) -> PlayerState {
+    PlayerState {
+        id: id.to_string(),
+        name: name.to_string(),
+        x: 0.0,
+        z: 0.0,
+        gold: STARTING_GOLD,
+        inventory: HashMap::new(),
+        reputation: 0,
         nearest_post_id: None,
         show_trade_panel: false,
+        trade_history: Vec::new(),
         notification: String::new(),
     }
 }
 
-/// Advance one tick of the simulation (server-authoritative)
+/// Build a per-player snapshot of the world for sending over the network
+pub fn build_player_snapshot(state: &GameState, player_id: &str) -> Option<PlayerSnapshot> {
+    let player = state.players.get(player_id)?.clone();
+    let other_players: Vec<OtherPlayer> = state.players.iter()
+        .filter(|(id, _)| *id != player_id)
+        .map(|(_, p)| OtherPlayer {
+            id: p.id.clone(),
+            name: p.name.clone(),
+            x: p.x,
+            z: p.z,
+        })
+        .collect();
+
+    Some(PlayerSnapshot {
+        tick: state.tick,
+        player,
+        other_players,
+        commodities: state.commodities.clone(),
+        trading_posts: state.trading_posts.clone(),
+        active_events: state.active_events.clone(),
+    })
+}
+
+// ── Simulation (Server-Authoritative) ─────────────────────────
+
+/// Advance one tick of the world simulation — always runs, never paused
 pub fn advance_tick(state: &mut GameState) {
     let mut rng = rand::thread_rng();
 
@@ -148,8 +213,12 @@ pub fn advance_tick(state: &mut GameState) {
     }
     state.active_events.retain(|e| e.remaining_ticks > 0);
 
+    // Clear per-player notifications
+    for player in state.players.values_mut() {
+        player.notification.clear();
+    }
+
     // Maybe spawn event (3% chance)
-    state.notification.clear();
     if rng.gen::<f64>() < 0.03 {
         let t = &EVENT_TEMPLATES[rng.gen_range(0..EVENT_TEMPLATES.len())];
         let ev = MarketEvent {
@@ -163,11 +232,15 @@ pub fn advance_tick(state: &mut GameState) {
             }],
             remaining_ticks: 5 + rng.gen_range(0..10),
         };
-        state.notification = format!("\u{26A1} {}: {}", ev.name, ev.description);
+        let notification = format!("\u{26A1} {}: {}", ev.name, ev.description);
+        // Broadcast notification to all players
+        for player in state.players.values_mut() {
+            player.notification = notification.clone();
+        }
         state.active_events.push(ev);
     }
 
-    // Update commodities
+    // Update commodity prices
     for commodity in &mut state.commodities {
         let mut supply_mod = 1.0_f64;
         let mut demand_mod = 1.0_f64;
@@ -199,34 +272,43 @@ pub fn advance_tick(state: &mut GameState) {
     state.tick += 1;
 }
 
-/// Move player by delta, clamped to world bounds
-pub fn move_player(state: &mut GameState, dx: f64, dz: f64) {
-    if state.show_trade_panel { return; }
+// ── Player Actions ────────────────────────────────────────────
 
-    state.player_x = (state.player_x + dx).max(-WORLD_BOUND).min(WORLD_BOUND);
-    state.player_z = (state.player_z + dz).max(-WORLD_BOUND).min(WORLD_BOUND);
+/// Move a specific player by delta, clamped to world bounds
+pub fn move_player(state: &mut GameState, player_id: &str, dx: f64, dz: f64) {
+    if let Some(player) = state.players.get_mut(player_id) {
+        if player.show_trade_panel { return; }
 
-    update_nearest_post(state);
+        player.x = (player.x + dx).max(-WORLD_BOUND).min(WORLD_BOUND);
+        player.z = (player.z + dz).max(-WORLD_BOUND).min(WORLD_BOUND);
+
+        update_nearest_post(player, &state.trading_posts);
+    }
 }
 
-fn update_nearest_post(state: &mut GameState) {
+fn update_nearest_post(player: &mut PlayerState, trading_posts: &[TradingPost]) {
     let mut nearest: Option<String> = None;
     let mut nearest_dist = f64::INFINITY;
 
-    for post in &state.trading_posts {
-        let dist = ((post.x - state.player_x).powi(2) + (post.z - state.player_z).powi(2)).sqrt();
+    for post in trading_posts {
+        let dist = ((post.x - player.x).powi(2) + (post.z - player.z).powi(2)).sqrt();
         if dist < POST_INTERACTION_RANGE && dist < nearest_dist {
             nearest = Some(post.id.clone());
             nearest_dist = dist;
         }
     }
 
-    state.nearest_post_id = nearest;
+    player.nearest_post_id = nearest;
 }
 
-/// Execute a trade - fully validated server-side
-pub fn execute_trade(state: &mut GameState, commodity_id: &str, trade_type: &str, quantity: u32) -> TradeResult {
-    if !state.show_trade_panel || state.nearest_post_id.is_none() {
+/// Execute a trade for a specific player — fully validated server-side
+pub fn execute_trade(state: &mut GameState, player_id: &str, commodity_id: &str, trade_type: &str, quantity: u32) -> TradeResult {
+    let player = match state.players.get_mut(player_id) {
+        Some(p) => p,
+        None => return TradeResult { success: false, message: "Spieler nicht gefunden!".to_string() },
+    };
+
+    if !player.show_trade_panel || player.nearest_post_id.is_none() {
         return TradeResult { success: false, message: "Kein Handelsposten in der Nähe!".to_string() };
     }
 
@@ -243,23 +325,23 @@ pub fn execute_trade(state: &mut GameState, commodity_id: &str, trade_type: &str
 
     match trade_type {
         "buy" => {
-            if state.gold < total {
+            if player.gold < total {
                 return TradeResult { success: false, message: "\u{274C} Nicht genug Gold!".to_string() };
             }
-            state.gold -= total;
-            let entry = state.inventory.entry(commodity_id.to_string()).or_insert(0);
+            player.gold -= total;
+            let entry = player.inventory.entry(commodity_id.to_string()).or_insert(0);
             *entry += quantity;
-            state.reputation += quantity;
+            player.reputation += quantity;
         }
         "sell" => {
-            let owned = state.inventory.get(commodity_id).copied().unwrap_or(0);
+            let owned = player.inventory.get(commodity_id).copied().unwrap_or(0);
             if owned < quantity {
                 return TradeResult { success: false, message: "\u{274C} Nicht genug Waren!".to_string() };
             }
-            state.gold += total;
-            let entry = state.inventory.entry(commodity_id.to_string()).or_insert(0);
+            player.gold += total;
+            let entry = player.inventory.entry(commodity_id.to_string()).or_insert(0);
             *entry -= quantity;
-            state.reputation += quantity;
+            player.reputation += quantity;
         }
         _ => return TradeResult { success: false, message: "Unbekannter Handelstyp!".to_string() },
     }
@@ -271,7 +353,8 @@ pub fn execute_trade(state: &mut GameState, commodity_id: &str, trade_type: &str
         format!("\u{2705} Verkauft: {}x {}", quantity, name)
     };
 
-    state.trade_history.push(TradeOrder {
+    player.notification = msg.clone();
+    player.trade_history.push(TradeOrder {
         commodity_id: commodity_id.to_string(),
         trade_type: trade_type.to_string(),
         quantity,
@@ -282,16 +365,18 @@ pub fn execute_trade(state: &mut GameState, commodity_id: &str, trade_type: &str
     TradeResult { success: true, message: msg }
 }
 
-pub fn toggle_trade_panel(state: &mut GameState) {
-    if state.nearest_post_id.is_some() || state.show_trade_panel {
-        state.show_trade_panel = !state.show_trade_panel;
+/// Toggle trade panel for a specific player
+pub fn toggle_trade_panel(state: &mut GameState, player_id: &str) {
+    if let Some(player) = state.players.get_mut(player_id) {
+        if player.nearest_post_id.is_some() || player.show_trade_panel {
+            player.show_trade_panel = !player.show_trade_panel;
+        }
     }
 }
 
-pub fn set_paused(state: &mut GameState, paused: bool) {
-    state.paused = paused;
-}
-
-pub fn set_speed(state: &mut GameState, speed: f64) {
-    state.speed = speed.max(0.0).min(10.0);
+/// Close trade panel for a specific player
+pub fn close_trade_panel(state: &mut GameState, player_id: &str) {
+    if let Some(player) = state.players.get_mut(player_id) {
+        player.show_trade_panel = false;
+    }
 }

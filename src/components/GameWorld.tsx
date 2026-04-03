@@ -1,11 +1,13 @@
 import { Canvas } from "@react-three/fiber";
 import { useMemo } from "react";
+import { Stats } from "@react-three/drei";
 import Terrain from "./world/Terrain";
 import Trees from "./world/Trees";
 import Water from "./world/Water";
 import Roads from "./world/Roads";
 import TradingPostMesh from "./world/TradingPostMesh";
 import Player from "./world/Player";
+import OtherPlayers from "./world/OtherPlayers";
 import FollowCamera from "./world/FollowCamera";
 import { useGameStore } from "../store/gameStore";
 
@@ -57,7 +59,11 @@ export default function GameWorld() {
 
       {/* Player */}
       <Player />
+      <OtherPlayers />
       <FollowCamera />
+
+      {/* FPS Counter (top-left) */}
+      <Stats />
     </Canvas>
   );
 }

@@ -1,22 +1,27 @@
 import { useGameStore } from "../../store/gameStore";
 
-/** Top bar showing gold, day, reputation, speed, controls */
+/** Top bar showing gold, day, reputation, controls */
 export default function HUD() {
   const tick = useGameStore((s) => s.tick);
   const gold = useGameStore((s) => s.gold);
   const reputation = useGameStore((s) => s.reputation);
-  const paused = useGameStore((s) => s.paused);
-  const speed = useGameStore((s) => s.speed);
   const notification = useGameStore((s) => s.notification);
   const nearestPostId = useGameStore((s) => s.nearestPostId);
   const showTradePanel = useGameStore((s) => s.showTradePanel);
   const tradingPosts = useGameStore((s) => s.tradingPosts);
   const activeEvents = useGameStore((s) => s.activeEvents);
+  const connected = useGameStore((s) => s.connected);
+  const otherPlayers = useGameStore((s) => s.otherPlayers);
 
   const nearestPost = tradingPosts.find((p) => p.id === nearestPostId);
 
   return (
     <>
+      {/* Connection status */}
+      {!connected && (
+        <div className="hud-notification">🔄 Verbinde mit Server...</div>
+      )}
+
       {/* Top Bar */}
       <div className="hud-top">
         <div className="hud-title">⚔ TradeWars</div>
@@ -24,13 +29,11 @@ export default function HUD() {
           <span className="stat gold">💰 {Math.floor(gold).toLocaleString("de-DE")} Gold</span>
           <span className="stat">📅 Tag {tick}</span>
           <span className="stat">⭐ {reputation} Ruf</span>
-          <span className="stat">{paused ? "⏸ Pause" : `⏩ x${speed}`}</span>
+          <span className="stat">👥 {otherPlayers.length + 1} Online</span>
         </div>
         <div className="hud-controls">
           <kbd>WASD</kbd> Bewegen
           <kbd>E</kbd> Handeln
-          <kbd>Space</kbd> Pause
-          <kbd>1-3</kbd> Speed
         </div>
       </div>
 

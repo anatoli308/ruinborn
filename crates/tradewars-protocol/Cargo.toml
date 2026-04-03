@@ -1,0 +1,10 @@
+[package]
+name = "tradewars-protocol"
+version = "0.1.0"
+edition = "2021"
+description = "TradeWars network protocol — shared message types between server and client"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tradewars-game = { path = "../tradewars-game" }

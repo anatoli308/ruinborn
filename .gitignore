@@ -6,6 +6,7 @@ dist/
 
 # Tauri
 src-tauri/target/
+target
 
 # IDE
 .vscode/
@@ -19,6 +20,3 @@ Thumbs.db
 # Environment
 .env
 .env.local
-
-
-IDEEN.md
