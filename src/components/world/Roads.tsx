@@ -3,9 +3,9 @@ import { useMemo } from "react";
 import { Line } from "@react-three/drei";
 import { useGameStore } from "../../store/gameStore";
 
-/** Road lines connecting trading posts */
+/** Road lines connecting player markets */
 export default function Roads() {
-  const posts = useGameStore((s) => s.tradingPosts);
+  const posts = useGameStore((s) => s.playerMarkets);
 
   const lines = useMemo(() => {
     const result: [THREE.Vector3, THREE.Vector3][] = [];

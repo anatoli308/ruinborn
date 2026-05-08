@@ -1,24 +1,17 @@
 import { Canvas } from "@react-three/fiber";
-import { useMemo } from "react";
 import { Stats } from "@react-three/drei";
 import Terrain from "./world/Terrain";
-import Trees from "./world/Trees";
-import Water from "./world/Water";
-import Roads from "./world/Roads";
 import TradingPostMesh from "./world/TradingPostMesh";
 import Player from "./world/Player";
 import OtherPlayers from "./world/OtherPlayers";
 import FollowCamera from "./world/FollowCamera";
+import Enemies from "./world/Enemies";
+import LootDrops from "./world/LootDrops";
 import { useGameStore } from "../store/gameStore";
 
 /** The full 3D game world rendered via R3F */
 export default function GameWorld() {
-  const tradingPosts = useGameStore((s) => s.tradingPosts);
-
-  const postPositions = useMemo(
-    () => tradingPosts.map((p) => ({ x: p.x, z: p.z })),
-    [tradingPosts]
-  );
+  const playerMarkets = useGameStore((s) => s.playerMarkets);
 
   return (
     <Canvas
@@ -49,13 +42,14 @@ export default function GameWorld() {
 
       {/* World */}
       <Terrain />
-      <Water />
-      <Roads />
-      <Trees avoidPositions={postPositions} />
 
-      {tradingPosts.map((post) => (
-        <TradingPostMesh key={post.id} post={post} />
+      {playerMarkets.map((market) => (
+        <TradingPostMesh key={market.id} market={market} />
       ))}
+
+      {/* Enemies + Loot */}
+      <Enemies />
+      <LootDrops />
 
       {/* Player */}
       <Player />

@@ -10,15 +10,13 @@ export default function Inventory() {
 
   return (
     <div className="hud-inventory">
-      <div className="inv-title">📦 Inventar</div>
+      <div className="inv-title">📦 Inventory</div>
       {items.map(([id, qty]) => {
         const c = commodities.find((c) => c.id === id);
         if (!c) return null;
-        const value = (c.price * qty).toFixed(0);
         return (
           <div key={id} className="inv-item">
             {c.icon} {c.name}: <strong>{qty}</strong>
-            <span className="inv-value">({value} G)</span>
           </div>
         );
       })}
