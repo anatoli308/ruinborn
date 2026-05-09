@@ -59,12 +59,25 @@ export default function ActionBar() {
   const sendUseActionSlot = useGameStore((s) => s.sendUseActionSlot);
   const sendSetActionSlotSkill = useGameStore((s) => s.sendSetActionSlotSkill);
   const sendBindMouseSkill = useGameStore((s) => s.sendBindMouseSkill);
+  const setHoveredSkillRange = useGameStore((s) => s.setHoveredSkillRange);
   const mouseLeft = useGameStore((s) => s.mouseLeft);
   const mouseRight = useGameStore((s) => s.mouseRight);
   const hp = useGameStore((s) => s.hp);
   const maxHp = useGameStore((s) => s.maxHp);
   const mana = useGameStore((s) => s.mana);
   const maxMana = useGameStore((s) => s.maxMana);
+
+  /** Resolve the skill range hidden behind a binding, or `null` if there is none. */
+  const bindingRange = (binding: ActionBinding | null): number | null => {
+    if (!binding || binding.kind !== "skill") return null;
+    const skill = SKILL_CATALOG.find((s) => s.id === binding.skillId);
+    return skill && skill.range > 0 ? skill.range : null;
+  };
+
+  const showRangeFor = (binding: ActionBinding | null) => {
+    setHoveredSkillRange(bindingRange(binding));
+  };
+  const clearRange = () => setHoveredSkillRange(null);
 
   const itemIndex = new Map<string, { icon: string; name: string; rarity: string }>();
   for (const bag of bags.bags) {
@@ -82,7 +95,7 @@ export default function ActionBar() {
 
   /** Read a skill drop payload, if any. Future-proof: returns null when not a skill. */
   const readSkillDrop = (e: React.DragEvent): string | null => {
-    const raw = e.dataTransfer.getData("application/x-tradewars-skill");
+    const raw = e.dataTransfer.getData("application/x-ruinborn-skill");
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw) as { skillId?: string };
@@ -93,7 +106,7 @@ export default function ActionBar() {
   };
 
   const allowDrop = (e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes("application/x-tradewars-skill")) {
+    if (e.dataTransfer.types.includes("application/x-ruinborn-skill")) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
     }
@@ -108,6 +121,8 @@ export default function ActionBar() {
         className="action-bar__slot action-bar__mouse"
         title={`Linksklick: ${lmb.title}`}
         style={lmb.borderColor ? { borderColor: lmb.borderColor } : undefined}
+        onMouseEnter={() => showRangeFor(mouseLeft)}
+        onMouseLeave={clearRange}
         onDragOver={allowDrop}
         onDrop={(e) => {
           const skillId = readSkillDrop(e);
@@ -129,6 +144,8 @@ export default function ActionBar() {
             className="action-bar__slot"
             title={v.title}
             onClick={() => void sendUseActionSlot(i)}
+            onMouseEnter={() => showRangeFor(binding)}
+            onMouseLeave={clearRange}
             onDragOver={allowDrop}
             onDrop={(e) => {
               const skillId = readSkillDrop(e);
@@ -151,6 +168,8 @@ export default function ActionBar() {
         className="action-bar__slot action-bar__mouse"
         title={`Rechtsklick: ${rmb.title}`}
         style={rmb.borderColor ? { borderColor: rmb.borderColor } : undefined}
+        onMouseEnter={() => showRangeFor(mouseRight)}
+        onMouseLeave={clearRange}
         onDragOver={allowDrop}
         onDrop={(e) => {
           const skillId = readSkillDrop(e);

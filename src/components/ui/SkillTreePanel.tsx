@@ -138,7 +138,7 @@ export default function SkillTreePanel() {
                 onDragStart={(e) => {
                   if (!known || locked) return;
                   e.dataTransfer.setData(
-                    "application/x-tradewars-skill",
+                    "application/x-ruinborn-skill",
                     JSON.stringify({ skillId: sk.id }),
                   );
                   e.dataTransfer.effectAllowed = "copy";

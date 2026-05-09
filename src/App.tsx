@@ -16,6 +16,7 @@ import WaypointTravel from "./components/ui/WaypointTravel";
 import PortraitBar from "./components/ui/PortraitBar";
 import ClassSelectModal from "./components/ui/ClassSelectModal";
 import SkillTreePanel from "./components/ui/SkillTreePanel";
+import Toast from "./components/ui/Toast";
 
 export default function App() {
   const connected = useGameStore((s) => s.connected);
@@ -103,6 +104,7 @@ export default function App() {
         <CharacterView />
         <SkillTreePanel />
         <ClassSelectModal />
+        <Toast />
       </div>
 
       {/* FPS counter anchor — drei <Stats> mounts its DOM here. */}

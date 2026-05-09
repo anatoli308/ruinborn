@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/tradewars-game",
-    "crates/tradewars-protocol",
-    "crates/tradewars-server",
+    "crates/ruinborn-game",
+    "crates/ruinborn-protocol",
+    "crates/ruinborn-server",
     "src-tauri",
 ]

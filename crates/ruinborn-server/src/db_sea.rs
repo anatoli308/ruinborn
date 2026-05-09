@@ -5,7 +5,7 @@ use log::info;
 use sea_orm::sea_query::TableCreateStatement;
 use sea_orm::*;
 
-use tradewars_game::{
+use ruinborn_game::{
     ActionBar, Equipment, GameState, ItemBags, MarketOrder, Mission, PlayerMarket, PlayerState,
     Stats, TradeRecord, ZoneId,
 };
@@ -99,7 +99,7 @@ async fn create_table_if_missing(
 /// Returns `None` if the database has no saved game data (first run).
 pub async fn load_game_state(
     db: &DatabaseConnection,
-    commodities: Vec<tradewars_game::Commodity>,
+    commodities: Vec<ruinborn_game::Commodity>,
 ) -> Result<Option<GameState>, DbErr> {
     let player_count = entity::player::Entity::find().count(db).await?;
     let node_count = entity::resource_node::Entity::find().count(db).await?;
@@ -176,16 +176,16 @@ pub async fn load_game_state(
         };
         let mouse_left = pm.mouse_left.and_then(|v| serde_json::from_value(v).ok());
         let mouse_right = pm.mouse_right.and_then(|v| serde_json::from_value(v).ok());
-        let class_id = pm.class_id.as_deref().and_then(tradewars_game::ClassId::parse);
+        let class_id = pm.class_id.as_deref().and_then(ruinborn_game::ClassId::parse);
         let allocated_skills: std::collections::HashMap<String, u32> =
             serde_json::from_value(pm.allocated_skills).unwrap_or_default();
         let skill_cooldowns: std::collections::HashMap<String, u32> =
             serde_json::from_value(pm.skill_cooldowns).unwrap_or_default();
         let active_buffs: std::collections::HashMap<String, u32> =
             serde_json::from_value(pm.active_buffs).unwrap_or_default();
-        let resistances: tradewars_game::Resistances =
+        let resistances: ruinborn_game::Resistances =
             serde_json::from_value(pm.resistances).unwrap_or_default();
-        let dots: Vec<tradewars_game::DotInstance> =
+        let dots: Vec<ruinborn_game::DotInstance> =
             serde_json::from_value(pm.dots).unwrap_or_default();
 
         let mission_models = entity::player_mission::Entity::find()
@@ -262,7 +262,7 @@ pub async fn load_game_state(
         player_markets,
         mission_board,
         players,
-        zones: tradewars_game::build_default_zones(),
+        zones: ruinborn_game::build_default_zones(),
         enemies: Vec::new(),
         loot_drops: Vec::new(),
         next_enemy_id: 0,
@@ -360,9 +360,9 @@ pub async fn save_game_state(
                 let mouse_left_json = player.mouse_left.as_ref().and_then(|b| serde_json::to_value(b).ok());
                 let mouse_right_json = player.mouse_right.as_ref().and_then(|b| serde_json::to_value(b).ok());
                 let class_id_str = player.class_id.map(|c| match c {
-                    tradewars_game::ClassId::Barbarian => "barbarian".to_string(),
-                    tradewars_game::ClassId::Sorceress => "sorceress".to_string(),
-                    tradewars_game::ClassId::Necromancer => "necromancer".to_string(),
+                    ruinborn_game::ClassId::Barbarian => "barbarian".to_string(),
+                    ruinborn_game::ClassId::Sorceress => "sorceress".to_string(),
+                    ruinborn_game::ClassId::Necromancer => "necromancer".to_string(),
                 });
                 let allocated_skills_json = serde_json::to_value(&player.allocated_skills)
                     .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));

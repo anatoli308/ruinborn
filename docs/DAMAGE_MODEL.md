@@ -12,7 +12,7 @@ UI-Anbindung bis zum typed Damage Pipeline mit Resistenzen und DoTs.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  tradewars-game  (pure logic, server-authoritative)         │
+│  ruinborn-game  (pure logic, server-authoritative)         │
 │                                                             │
 │  damage.rs   ── DamageType, DamageTag, DamageInstance,      │
 │                 Resistances, DotInstance, tick_dots()       │
@@ -24,7 +24,7 @@ UI-Anbindung bis zum typed Damage Pipeline mit Resistenzen und DoTs.
             │ serde JSON                 ▲ Tauri events
             ▼                            │
 ┌─────────────────────────────────────────────────────────────┐
-│  tradewars-server  (Tauri 2 + SeaORM/Postgres)              │
+│  ruinborn-server  (Tauri 2 + SeaORM/Postgres)              │
 │                                                             │
 │  entity/player.rs ── JSONB-Spalten resistances, dots,       │
 │                       allocated_skills, skill_cooldowns,    │
@@ -51,7 +51,7 @@ UI-Anbindung bis zum typed Damage Pipeline mit Resistenzen und DoTs.
 
 ### Klassen
 
-`crates/tradewars-game/src/classes.rs`
+`crates/ruinborn-game/src/classes.rs`
 
 ```rust
 pub enum ClassId { Barbarian, Sorceress, Necromancer }
@@ -71,7 +71,7 @@ HashMap`. Beim Level-Up wird 1 Skill-Punkt vergeben.
 
 ### Skill-Definitionen (Phase 1, ohne Damage Types)
 
-`crates/tradewars-game/src/skills.rs::skill_catalog()` — 9 Skills, jeweils mit
+`crates/ruinborn-game/src/skills.rs::skill_catalog()` — 9 Skills, jeweils mit
 `mana_cost`, `cooldown_ticks`, `range`, `requires_level`, `effect`. Effekte in
 Phase 1: `DirectDamage`, `AoeAround`, `Teleport`, `SelfBuff`, `Placeholder`.
 
@@ -155,7 +155,7 @@ Plus Actions:
 
 ## Phase 3 — Damage Model (Types, Resistenzen, DoTs)
 
-Neuer Kern-Modul: `crates/tradewars-game/src/damage.rs`.
+Neuer Kern-Modul: `crates/ruinborn-game/src/damage.rs`.
 
 ### Damage Types
 

@@ -9,6 +9,7 @@ import FollowCamera from "./world/FollowCamera";
 import Enemies from "./world/Enemies";
 import LootDrops from "./world/LootDrops";
 import Waypoints from "./world/Waypoints";
+import RangeIndicator from "./world/RangeIndicator";
 import { useGameStore } from "../store/gameStore";
 
 interface GameWorldProps {
@@ -64,6 +65,7 @@ export default function GameWorld({ fpsAnchorRef }: GameWorldProps) {
       {/* Player */}
       <Player />
       <OtherPlayers />
+      <RangeIndicator />
       <FollowCamera />
 
       {/* FPS Counter (anchored bottom-left via parent ref + CSS) */}

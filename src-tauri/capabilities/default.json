@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default permissions for TradeWars",
+  "description": "Default permissions for Ruinborn",
   "windows": ["main"],
   "permissions": [
     "core:default",

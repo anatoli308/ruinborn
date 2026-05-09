@@ -1,4 +1,4 @@
-# TradeWars — Gesamt-Setup & Umsetzungen
+# Ruinborn — Gesamt-Setup & Umsetzungen
 
 Stand: Phase 3 (Damage Model) abgeschlossen.
 `cargo check --workspace` ✅ · `cargo check` (`src-tauri`) ✅ · `tsc --noEmit` ✅
@@ -19,7 +19,7 @@ Module, Datenflüsse, Persistenz, UI und alle bisher umgesetzten Features.
 | Schicht         | Tech                                                       |
 | --------------- | ---------------------------------------------------------- |
 | Desktop-Shell   | Tauri 2 (Rust)                                             |
-| Backend / Game  | Rust — `tradewars-game`, `tradewars-protocol`, `tradewars-server` |
+| Backend / Game  | Rust — `ruinborn-game`, `ruinborn-protocol`, `ruinborn-server` |
 | Persistenz      | PostgreSQL via SeaORM                                      |
 | Async-Runtime   | Tokio                                                      |
 | Frontend        | React 19 + TypeScript + Vite                               |
@@ -33,11 +33,11 @@ Module, Datenflüsse, Persistenz, UI und alle bisher umgesetzten Features.
 ## 2. Workspace-Struktur
 
 ```
-tradewars/
+ruinborn/
 ├── Cargo.toml                  # Workspace root
 ├── package.json                # Frontend + Tauri scripts
 ├── crates/
-│   ├── tradewars-game/         # Pure logic, no I/O
+│   ├── ruinborn-game/         # Pure logic, no I/O
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── classes.rs      # ClassId, ClassDef
@@ -48,9 +48,9 @@ tradewars/
 │   │       ├── progression.rs  # Level/XP-Curve, Stat-Punkte
 │   │       ├── skills.rs       # SkillDef-Catalog, cast_skill
 │   │       └── world.rs        # ZoneId, Trading-Posts, Wegpunkte
-│   ├── tradewars-protocol/     # WS message types
+│   ├── ruinborn-protocol/     # WS message types
 │   │   └── src/lib.rs          # ClientMessage / ServerMessage
-│   └── tradewars-server/       # WS-Server + DB
+│   └── ruinborn-server/       # WS-Server + DB
 │       └── src/
 │           ├── main.rs         # Tokio loop, tick-broadcast
 │           ├── db.rs           # DB-Pool wiring
@@ -81,7 +81,7 @@ tradewars/
 
 ### Server-Authoritativ
 
-- Aller Game-State lebt im Server-Prozess (`tradewars-server`) als
+- Aller Game-State lebt im Server-Prozess (`ruinborn-server`) als
   `Mutex<GameState>`.
 - Frontend ist **Read-Only Mirror** — kein lokaler Mutationspfad.
 - Spieler-Inputs gehen über WebSocket (`ClientMessage`), Antworten kommen als
@@ -89,17 +89,17 @@ tradewars/
 
 ### Single Source of Truth
 
-- `tradewars-game` enthält die einzige Implementierung jeder Spielregel.
-- `tradewars-protocol` definiert die einzige Wire-Format-Wahrheit.
+- `ruinborn-game` enthält die einzige Implementierung jeder Spielregel.
+- `ruinborn-protocol` definiert die einzige Wire-Format-Wahrheit.
 - Frontend-Typen und -Catalogs sind *gespiegelt*, nicht *eigenständig*.
 
 ### Klare Trennungen
 
 | Schicht          | Verantwortung                                  |
 | ---------------- | ---------------------------------------------- |
-| `tradewars-game` | Pure Logik — kein I/O, keine DB, kein WS       |
-| `tradewars-server` | Tokio-Loop, WS-Handler, DB-Persistenz        |
-| `tradewars-protocol` | Nur Message-Schemas                        |
+| `ruinborn-game` | Pure Logik — kein I/O, keine DB, kein WS       |
+| `ruinborn-server` | Tokio-Loop, WS-Handler, DB-Persistenz        |
+| `ruinborn-protocol` | Nur Message-Schemas                        |
 | Frontend Store   | Mapping snake_case → camelCase, IPC-Wrapper    |
 | Frontend Components | Reines Rendering / Eingabe                  |
 
@@ -115,7 +115,7 @@ DB_SAVE_INTERVAL        = 30    // alle 30 Game-Ticks (= 30 s) speichern
 
 Pro Network-Tick:
 1. Spieler-Inputs aus `mpsc`-Channels einlesen, in `GameState` anwenden.
-2. Bei Counter-Match: `tradewars_game::market::advance_tick(&mut game)` — das
+2. Bei Counter-Match: `ruinborn_game::market::advance_tick(&mut game)` — das
    **eine** Funktion, die Combat, Spawns, DoTs, Markt, Level-ups bewegt.
 3. Pro verbundenem Client: `build_delta_snapshot(...)` und broadcast.
 4. Periodisch: `db_sea::save_game_state(&pool, &game)`.
@@ -132,7 +132,7 @@ Pro Network-Tick:
 
 ## 5. Wire-Protocol (Auszug)
 
-`tradewars-protocol::ClientMessage` (`#[serde(tag = "cmd")]`):
+`ruinborn-protocol::ClientMessage` (`#[serde(tag = "cmd")]`):
 
 | `cmd`                | Felder                                                                      |
 | -------------------- | --------------------------------------------------------------------------- |

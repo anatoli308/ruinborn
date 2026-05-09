@@ -333,6 +333,13 @@ interface GameStore {
   /** Currently focused enemy (Tab/click). Cleared when the enemy dies or despawns. */
   targetEnemyId: string | null;
 
+  /** Transient error toast (e.g. "Ziel außer Reichweite"). Cleared automatically by the Toast component. */
+  lastError: { message: string; ts: number } | null;
+  /** Range (world units) of the skill currently hovered in the action bar. `null` = hide indicator. */
+  hoveredSkillRange: number | null;
+  setHoveredSkillRange: (range: number | null) => void;
+  clearLastError: () => void;
+
   // Damage model (Phase 3)
   resistances: Resistances;
   dots: DotInstance[];
@@ -734,6 +741,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   waypointMenuOpen: false,
   targetEnemyId: null,
 
+  lastError: null,
+  hoveredSkillRange: null,
+
   resistances: { physical: 0, fire: 0, cold: 0, lightning: 0, poison: 0, magical: 0 },
   dots: [],
 
@@ -769,6 +779,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           break;
 
         case "action_result":
+          if (!msg.success && msg.message) {
+            set({ lastError: { message: msg.message, ts: Date.now() } });
+          }
           if (actionResolver) {
             actionResolver({
               success: msg.success ?? false,
@@ -940,6 +953,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setTargetEnemy: (id: string | null) => {
     set({ targetEnemyId: id });
+  },
+
+  setHoveredSkillRange: (range: number | null) => {
+    set({ hoveredSkillRange: range });
+  },
+
+  clearLastError: () => {
+    set({ lastError: null });
   },
 
   cycleTarget: () => {

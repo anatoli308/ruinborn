@@ -1,12 +1,12 @@
 [package]
-name = "tradewars"
+name = "ruinborn"
 version = "0.1.0"
-description = "TradeWars Desktop Client — thin Tauri wrapper"
+description = "Ruinborn Desktop Client — thin Tauri wrapper"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "tradewars_lib"
+name = "ruinborn_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

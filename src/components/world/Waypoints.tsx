@@ -3,7 +3,7 @@ import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameStore } from "../../store/gameStore";
 
-/** Waypoint stones in world coordinates — must match `crates/tradewars-game/src/world.rs`. */
+/** Waypoint stones in world coordinates — must match `crates/ruinborn-game/src/world.rs`. */
 const WAYPOINTS: Array<{ id: string; x: number; z: number }> = [
   { id: "town", x: 0, z: 0 },
   { id: "wilderness", x: 0, z: 60 },

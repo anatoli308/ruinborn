@@ -1,16 +1,16 @@
 [package]
-name = "tradewars-server"
+name = "ruinborn-server"
 version = "0.1.0"
 edition = "2021"
-description = "TradeWars dedicated WebSocket game server"
+description = "Ruinborn dedicated WebSocket game server"
 
 [[bin]]
-name = "tradewars-server"
+name = "ruinborn-server"
 path = "src/main.rs"
 
 [dependencies]
-tradewars-game = { path = "../tradewars-game" }
-tradewars-protocol = { path = "../tradewars-protocol" }
+ruinborn-game = { path = "../ruinborn-game" }
+ruinborn-protocol = { path = "../ruinborn-protocol" }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.24"
 futures-util = "0.3"

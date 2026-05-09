@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tradewars_game::{DeltaSnapshot, PlayerSnapshot};
+use ruinborn_game::{DeltaSnapshot, PlayerSnapshot};
 
 // ── Client → Server Messages ──────────────────────────────────
 

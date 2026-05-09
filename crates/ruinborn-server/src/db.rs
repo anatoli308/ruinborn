@@ -5,7 +5,7 @@ use log::info;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Row};
 
-use tradewars_game::{
+use ruinborn_game::{
     GameState, Mission, MarketOrder, PlayerMarket, PlayerState, ResourceNode, TradeRecord,
 };
 
@@ -32,7 +32,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
 /// Returns `None` if the database has no saved game data (first run after migration).
 pub async fn load_game_state(
     pool: &PgPool,
-    commodities: Vec<tradewars_game::Commodity>,
+    commodities: Vec<ruinborn_game::Commodity>,
 ) -> Result<Option<GameState>, sqlx::Error> {
     // Check if any players or resource nodes exist (indicator of a saved game)
     let player_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM players")

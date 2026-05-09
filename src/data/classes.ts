@@ -1,7 +1,7 @@
 import type { ClassId, ClassInfo, SkillDef } from "../types";
 import { SKILL_ID_TO_ICON } from "../assets/spell_icons";
 
-/** Class catalog — mirror of `crates/tradewars-game/src/classes.rs::class_definition`. */
+/** Class catalog — mirror of `crates/ruinborn-game/src/classes.rs::class_definition`. */
 export const CLASS_CATALOG: ClassInfo[] = [
   {
     id: "barbarian",
@@ -33,7 +33,7 @@ export function classInfo(id: ClassId): ClassInfo {
   return CLASS_CATALOG.find((c) => c.id === id) ?? CLASS_CATALOG[0];
 }
 
-/** Skill catalog — mirror of `crates/tradewars-game/src/skills.rs::skill_catalog`. */
+/** Skill catalog — mirror of `crates/ruinborn-game/src/skills.rs::skill_catalog`. */
 export const SKILL_CATALOG: SkillDef[] = [
   // Barbarian
   {

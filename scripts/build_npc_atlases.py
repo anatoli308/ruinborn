@@ -1,5 +1,5 @@
 """Convert FLARE-style .txt animation defs to atlas JSON format used by the
-TradeWars frontend, then copy them into `src/assets/npc/atlases/` so they
+Ruinborn frontend, then copy them into `src/assets/npc/atlases/` so they
 are picked up by Vite's `import.meta.glob`. Mirrors the player_male format.
 
 Source field order (per `frame=` line):

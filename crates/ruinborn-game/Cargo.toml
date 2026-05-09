@@ -1,8 +1,8 @@
 [package]
-name = "tradewars-game"
+name = "ruinborn-game"
 version = "0.1.0"
 edition = "2021"
-description = "TradeWars shared game logic — server-authoritative simulation"
+description = "Ruinborn shared game logic — server-authoritative simulation"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

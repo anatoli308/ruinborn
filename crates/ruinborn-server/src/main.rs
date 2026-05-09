@@ -10,8 +10,8 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::tungstenite::Message;
 
-use tradewars_game::{self as game, EquipSlotName, GameState};
-use tradewars_protocol::{ClientMessage, ServerMessage};
+use ruinborn_game::{self as game, EquipSlotName, GameState};
+use ruinborn_protocol::{ClientMessage, ServerMessage};
 
 mod db_sea;
 mod entity;
@@ -66,7 +66,7 @@ async fn main() {
 
     // Connect to PostgreSQL
     let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set (e.g. postgres://user:pass@localhost/tradewars)");
+        .expect("DATABASE_URL must be set (e.g. postgres://user:pass@localhost/ruinborn)");
 
     let db = db::connect(&database_url)
         .await
@@ -109,7 +109,7 @@ async fn main() {
 
     // Bind TCP listener
     let listener = TcpListener::bind(BIND_ADDR).await.expect("Failed to bind");
-    info!("TradeWars server listening on {}", BIND_ADDR);
+    info!("Ruinborn server listening on {}", BIND_ADDR);
 
     while let Ok((stream, addr)) = listener.accept().await {
         let server = Arc::clone(&server);

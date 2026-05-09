@@ -1,10 +1,10 @@
-﻿# Copilot Instructions for TradeWars
+﻿# Copilot Instructions for Ruinborn
 
 ## Background Information
-This file contains the coding standards, architectural principles, and design patterns for the TradeWars project — a server-authoritative Wirtschaftssimulation built with **Tauri 2 (Rust backend)** and **React + Three.js/R3F (frontend)**. It serves as a guideline for all developers to ensure consistency, maintainability, and clarity. The instructions cover decision-making principles, coding rules, clean coding standards, project architecture, server-authoritative patterns, and conventions. Always use the latest stable versions of Rust, TypeScript, React, and Three.js features where appropriate.
+This file contains the coding standards, architectural principles, and design patterns for the Ruinborn project — a server-authoritative Wirtschaftssimulation built with **Tauri 2 (Rust backend)** and **React + Three.js/R3F (frontend)**. It serves as a guideline for all developers to ensure consistency, maintainability, and clarity. The instructions cover decision-making principles, coding rules, clean coding standards, project architecture, server-authoritative patterns, and conventions. Always use the latest stable versions of Rust, TypeScript, React, and Three.js features where appropriate.
 
 ## Game Vision
-TradeWars is a tick-based economy simulation where players trade commodities, manage firms, influence markets through supply/demand, execute financial strategies (stocks, futures, policies), and compete on leaderboards. The game features a 3D world rendered with React Three Fiber, with all game logic running server-side in Rust. Future scope includes multiplayer, AI agents, financial markets, and emergent macro-economics (see `docs/IDEEN.md` for the full feature roadmap).
+Ruinborn is a tick-based economy simulation where players trade commodities, manage firms, influence markets through supply/demand, execute financial strategies (stocks, futures, policies), and compete on leaderboards. The game features a 3D world rendered with React Three Fiber, with all game logic running server-side in Rust. Future scope includes multiplayer, AI agents, financial markets, and emergent macro-economics (see `docs/IDEEN.md` for the full feature roadmap).
 
 ## Decision-Making Principles
 - For background tasks or long decision tasks use Python and not PowerShell. PowerShell is only for short scripts and quick fixes, not for complex logic or data processing.

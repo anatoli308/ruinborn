@@ -1,4 +1,4 @@
-Ah, jetzt reden wir über **die Spielerinteraktionen**, also was in **TradeWars** der Spieler konkret tun kann – das ist entscheidend, um aus einer Wirtschaftssimulation ein **richtiges Game** zu machen. Ich teile es in **Gameplay-Level, Marktinteraktion, Firmenmanagement, Strategien und Spezialaktionen** auf.
+Ah, jetzt reden wir über **die Spielerinteraktionen**, also was in **Ruinborn** der Spieler konkret tun kann – das ist entscheidend, um aus einer Wirtschaftssimulation ein **richtiges Game** zu machen. Ich teile es in **Gameplay-Level, Marktinteraktion, Firmenmanagement, Strategien und Spezialaktionen** auf.
 
 ---
 
@@ -91,7 +91,7 @@ Ah, jetzt reden wir über **die Spielerinteraktionen**, also was in **TradeWars*
 
 💡 **Zusammenfassung**
 
-Spieler in **TradeWars** kann:
+Spieler in **Ruinborn** kann:
 
 1. Märkte steuern → Preise beeinflussen
 2. Firmen managen → Produktion, Forschung, Fusionen
@@ -100,11 +100,11 @@ Spieler in **TradeWars** kann:
 5. Strategische Entscheidungen treffen → Sabotage, Innovation, Boom
 6. Fortschritt verfolgen → Leaderboards, Achievements, Quests
 
-Super 😄 – hier kommt ein **konkreter Blueprint für TradeWars**: 15 Spieleraktionen, inklusive **UI-Ideen, Auswirkungen auf Märkte / Firmen, Game-Mechaniken**. So kannst du direkt anfangen, das in Rust + React + Three.js zu planen.
+Super 😄 – hier kommt ein **konkreter Blueprint für Ruinborn**: 15 Spieleraktionen, inklusive **UI-Ideen, Auswirkungen auf Märkte / Firmen, Game-Mechaniken**. So kannst du direkt anfangen, das in Rust + React + Three.js zu planen.
 
 ---
 
-# **TradeWars – Spieleraktionen Blueprint**
+# **Ruinborn – Spieleraktionen Blueprint**
 
 | Aktion                                     | UI-Element                     | Wirkung / Mechanik                                                     | Game-Mechanik / Feedback                                       |
 | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -158,7 +158,7 @@ Super 😄 – hier kommt ein **konkreter Blueprint für TradeWars**: 15 Spieler
 * Quests & Leaderboards dominieren
 
 
-Oh ja 😄 – das, was wir bisher haben, ist schon solide für den Kern, aber **für ein richtig “episches” TradeWars** kannst du noch extrem viele Layer draufpacken, gerade im Bereich **Finanzen, Risiko, Spekulation** oder “gamifizierte Wirtschaftsexperimente”.
+Oh ja 😄 – das, was wir bisher haben, ist schon solide für den Kern, aber **für ein richtig “episches” Ruinborn** kannst du noch extrem viele Layer draufpacken, gerade im Bereich **Finanzen, Risiko, Spekulation** oder “gamifizierte Wirtschaftsexperimente”.
 
 Ich liste mal **coole Erweiterungen / Ideen**, die über den bisherigen Kern hinausgehen:
 
@@ -272,7 +272,7 @@ Ich liste mal **coole Erweiterungen / Ideen**, die über den bisherigen Kern hin
 
 * Du kannst wirklich alles einbauen: Aktien, Crypto, Derivate, globale Events, Allianzen, Meme-Märkte…
 * Wichtig: **erstmal Kernsimulation stabil bauen**, dann Layer für Finanzmarkt, Multiplayer, Random Events, Gamification drüberpacken
-* TradeWars kann damit **von Wirtschaftssim zu fast einem MMO-Strategie-/Wirtschafts-Genre** wachsen
+* Ruinborn kann damit **von Wirtschaftssim zu fast einem MMO-Strategie-/Wirtschafts-Genre** wachsen
 # Copilot Instructions for RemakeSoF
 
 ## Background Information
@@ -369,7 +369,7 @@ This file contains the coding standards, architectural principles, and design pa
 - **NetworkedGameState**: Zentrale Synchronisation des Game-State zwischen Server und Clients.
 
 
-Ah perfekt, jetzt sprechen wir über **alles, was Spieler “besitzen” und verwalten können** – Inventar, Bank, Ressourcen, Konten, Liquidität – das ist ein extrem wichtiger Layer für **TradeWars**, gerade für PvP, PvE und Finanzmechaniken. Ich gebe dir eine klare Übersicht, wie man das aufbauen kann:
+Ah perfekt, jetzt sprechen wir über **alles, was Spieler “besitzen” und verwalten können** – Inventar, Bank, Ressourcen, Konten, Liquidität – das ist ein extrem wichtiger Layer für **Ruinborn**, gerade für PvP, PvE und Finanzmechaniken. Ich gebe dir eine klare Übersicht, wie man das aufbauen kann:
 
 ---
 
@@ -457,6 +457,6 @@ Ah perfekt, jetzt sprechen wir über **alles, was Spieler “besitzen” und ver
 
 💡 **Takeaway:**
 
-* Inventar + Bank → **Herzstück von TradeWars**, weil sie **Ressourcen, Geld, Investitionen, PvP/PvE Interaktion** zusammenhalten
+* Inventar + Bank → **Herzstück von Ruinborn**, weil sie **Ressourcen, Geld, Investitionen, PvP/PvE Interaktion** zusammenhalten
 * Macht Spieleraktionen **greifbar und strategisch**
 * Visualisierung: **Panels + 3D Map + Timeline** → Spieler sieht alles auf einen Blick

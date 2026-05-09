@@ -894,6 +894,6 @@ fn complete_mission_for_player(player: &mut PlayerState, mission_id: &str) {
 }
 '''
 
-path = pathlib.Path(r'd:\projects\tradewars\crates\tradewars-game\src\market.rs')
+path = pathlib.Path(r'd:\projects\tradewars\crates\ruinborn-game\src\market.rs')
 path.write_text(CONTENT.strip(), encoding='utf-8')
 print(f"Written {len(CONTENT.strip().splitlines())} lines to {path}")

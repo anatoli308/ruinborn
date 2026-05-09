@@ -1,5 +1,5 @@
 {
-  "name": "tradewars",
+  "name": "ruinborn",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -7,9 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "server:build": "cargo build --package tradewars-server",
-    "server:run": "cargo run --package tradewars-server",
-    "server:dev": "cargo run --package tradewars-server",
+    "server:build": "cargo build --package ruinborn-server",
+    "server:run": "cargo run --package ruinborn-server",
+    "server:dev": "cargo run --package ruinborn-server",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },

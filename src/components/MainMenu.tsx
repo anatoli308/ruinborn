@@ -32,7 +32,7 @@ export default function MainMenu({ onJoin }: MainMenuProps) {
   return (
     <div className="menu-backdrop">
       <div className="menu-card">
-        <h1 className="menu-title">TradeWars</h1>
+        <h1 className="menu-title">Ruinborn</h1>
         <p className="menu-subtitle">Economy &middot; Strategy &middot; Trade</p>
 
         <div className="menu-field">

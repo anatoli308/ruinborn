@@ -1,4 +1,4 @@
-# TradeWars – Social Sandbox MMO
+# Ruinborn – Social Sandbox MMO
 
 Ein tick-basiertes Wirtschafts-MMO, in dem Spieler Waren handeln, Märkte beeinflussen, Firmen managen und gegeneinander auf Leaderboards antreten. Der Server ist die einzige Autorität — der Client ist ein reiner Renderer.
 
@@ -60,8 +60,8 @@ npm run tauri:build            # Desktop-Installer (optional)
 | Schicht | Technologie |
 |---------|-------------|
 | **Game Server** | Rust, Tokio, WebSocket (`tokio-tungstenite`) |
-| **Game Logic** | `tradewars-game` Crate (reine Simulation, kein I/O) |
-| **Protokoll** | `tradewars-protocol` Crate (JSON, `ClientMessage`/`ServerMessage`) |
+| **Game Logic** | `ruinborn-game` Crate (reine Simulation, kein I/O) |
+| **Protokoll** | `ruinborn-protocol` Crate (JSON, `ClientMessage`/`ServerMessage`) |
 | **Frontend** | React 19, TypeScript, Three.js (R3F + Drei) |
 | **State** | Zustand (read-only Mirror des Servers) |
 | **Desktop** | Tauri 2 (optionale Shell, keine IPC — reiner WebSocket-Client) |
@@ -72,11 +72,11 @@ npm run tauri:build            # Desktop-Installer (optional)
 
 ```
 crates/
-├── tradewars-game/        # Game Logic Library (Simulation, keine I/O)
+├── ruinborn-game/        # Game Logic Library (Simulation, keine I/O)
 │   └── src/market.rs      # Commodities, TradingPosts, Economy Tick, Trades
-├── tradewars-protocol/    # Shared Message Types (Client ↔ Server)
+├── ruinborn-protocol/    # Shared Message Types (Client ↔ Server)
 │   └── src/lib.rs         # ClientMessage, ServerMessage, DeltaSnapshot
-└── tradewars-server/      # Dedizierter WebSocket Game Server
+└── ruinborn-server/      # Dedizierter WebSocket Game Server
     └── src/main.rs        # Tokio async, Tick Loop, Connection Handler
 
 src/                       # Frontend (React + R3F)

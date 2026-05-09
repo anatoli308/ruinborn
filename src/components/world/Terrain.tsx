@@ -6,7 +6,7 @@ const GRID_SPACING = 10;
 const WORLD_BOUND = 90;
 const GRID_COUNT = (WORLD_BOUND * 2) / GRID_SPACING + 1; // 19
 
-// ── Town zone bounds (must match crates/tradewars-game/src/world.rs) ─────
+// ── Town zone bounds (must match crates/ruinborn-game/src/world.rs) ─────
 const TOWN_MIN_X = -30;
 const TOWN_MAX_X = 30;
 const TOWN_MIN_Z = -30;

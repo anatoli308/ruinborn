@@ -1,6 +1,6 @@
 ﻿// ── Tauri Desktop Client ──────────────────────────────────────
 // Thin wrapper: opens a window that loads the web client.
-// All game logic runs on the dedicated server (tradewars-server).
+// All game logic runs on the dedicated server (ruinborn-server).
 // The frontend connects via WebSocket — no IPC commands needed.
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

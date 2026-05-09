@@ -1,8 +1,8 @@
-# TradeWars — Networking & Performance
+# Ruinborn — Networking & Performance
 
 ## Tick-System
 
-TradeWars nutzt zwei getrennte Tick-Raten:
+Ruinborn nutzt zwei getrennte Tick-Raten:
 
 | Tick | Rate | Intervall | Zweck |
 |------|------|-----------|-------|
