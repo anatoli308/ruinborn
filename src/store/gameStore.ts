@@ -329,6 +329,9 @@ interface GameStore {
   skillCooldowns: Record<string, number>;
   activeBuffs: Record<string, number>;
   skillTreeOpen: boolean;
+  waypointMenuOpen: boolean;
+  /** Currently focused enemy (Tab/click). Cleared when the enemy dies or despawns. */
+  targetEnemyId: string | null;
 
   // Damage model (Phase 3)
   resistances: Resistances;
@@ -370,6 +373,10 @@ interface GameStore {
   setCharacterOpen: (open: boolean) => void;
   toggleSkillTree: () => void;
   setSkillTreeOpen: (open: boolean) => void;
+  toggleWaypointMenu: () => void;
+  setWaypointMenuOpen: (open: boolean) => void;
+  setTargetEnemy: (id: string | null) => void;
+  cycleTarget: () => void;
   initConnection: (playerName: string, serverUrl?: string) => void;
 }
 
@@ -661,7 +668,7 @@ function sendAction(msg: Record<string, unknown>): Promise<{ success: boolean; m
 
 // ── Store ────────────────────────────────────────────────────
 
-export const useGameStore = create<GameStore>((set, _get) => ({
+export const useGameStore = create<GameStore>((set, get) => ({
   tick: 0,
   elapsedSecs: 0,
   playerId: "",
@@ -724,6 +731,8 @@ export const useGameStore = create<GameStore>((set, _get) => ({
   skillCooldowns: {},
   activeBuffs: {},
   skillTreeOpen: false,
+  waypointMenuOpen: false,
+  targetEnemyId: null,
 
   resistances: { physical: 0, fire: 0, cold: 0, lightning: 0, poison: 0, magical: 0 },
   dots: [],
@@ -919,5 +928,35 @@ export const useGameStore = create<GameStore>((set, _get) => ({
 
   setSkillTreeOpen: (open: boolean) => {
     set({ skillTreeOpen: open });
+  },
+
+  toggleWaypointMenu: () => {
+    set((s) => ({ waypointMenuOpen: !s.waypointMenuOpen }));
+  },
+
+  setWaypointMenuOpen: (open: boolean) => {
+    set({ waypointMenuOpen: open });
+  },
+
+  setTargetEnemy: (id: string | null) => {
+    set({ targetEnemyId: id });
+  },
+
+  cycleTarget: () => {
+    const s = get();
+    const alive = s.enemies
+      .filter((e) => e.state !== "dead" && e.zone === s.zone)
+      .map((e) => ({
+        id: e.id,
+        d: Math.hypot(e.x - s.playerX, e.z - s.playerZ),
+      }))
+      .sort((a, b) => a.d - b.d);
+    if (alive.length === 0) {
+      set({ targetEnemyId: null });
+      return;
+    }
+    const idx = alive.findIndex((e) => e.id === s.targetEnemyId);
+    const next = alive[(idx + 1) % alive.length];
+    set({ targetEnemyId: next.id });
   },
 }));

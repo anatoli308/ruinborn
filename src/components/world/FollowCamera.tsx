@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameStore } from "../../store/gameStore";
 
-const CAMERA_OFFSET = new THREE.Vector3(0, 18, 14);
+const CAMERA_OFFSET = new THREE.Vector3(0, 15, 8.5);
 
 /** Smooth follow camera that tracks the player */
 export default function FollowCamera() {

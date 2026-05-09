@@ -1,6 +1,8 @@
 import { useGameStore } from "../../store/gameStore";
 import { rarityColor } from "./rarity";
 import { SKILL_CATALOG } from "../../data/classes";
+import { DEFAULT_ATTACK_ICON } from "../../assets/spell_icons";
+import SkillIconView from "./SkillIconView";
 import type { ActionBinding, SkillEffectKind } from "../../types";
 
 /** Tiny emoji icon per skill effect — kept here so the action bar stays self-contained. */
@@ -40,12 +42,12 @@ function describeBinding(
   if (binding.kind === "skill") {
     const skill = SKILL_CATALOG.find((s) => s.id === binding.skillId);
     return {
-      icon: skill ? SKILL_ICON[skill.effect] : "❔",
+      icon: skill?.icon ?? (skill ? SKILL_ICON[skill.effect] : "❔"),
       title: skill?.name ?? "Skill",
     };
   }
   if (binding.kind === "attack") {
-    return { icon: "🗡️", title: "Standardangriff" };
+    return { icon: DEFAULT_ATTACK_ICON, title: "Standardangriff" };
   }
   return { icon: fallback, title: fallbackTitle };
 }
@@ -55,6 +57,8 @@ export default function ActionBar() {
   const actionBar = useGameStore((s) => s.actionBar);
   const bags = useGameStore((s) => s.bags);
   const sendUseActionSlot = useGameStore((s) => s.sendUseActionSlot);
+  const sendSetActionSlotSkill = useGameStore((s) => s.sendSetActionSlotSkill);
+  const sendBindMouseSkill = useGameStore((s) => s.sendBindMouseSkill);
   const mouseLeft = useGameStore((s) => s.mouseLeft);
   const mouseRight = useGameStore((s) => s.mouseRight);
   const hp = useGameStore((s) => s.hp);
@@ -70,11 +74,30 @@ export default function ActionBar() {
     }
   }
 
-  const lmb = describeBinding(mouseLeft, itemIndex, "🗡️", "Linksklick (Standardangriff)");
+  const lmb = describeBinding(mouseLeft, itemIndex, DEFAULT_ATTACK_ICON, "Linksklick (Standardangriff)");
   const rmb = describeBinding(mouseRight, itemIndex, "✋", "Rechtsklick (leer)");
 
   const hpPct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
   const manaPct = maxMana > 0 ? Math.max(0, Math.min(1, mana / maxMana)) : 0;
+
+  /** Read a skill drop payload, if any. Future-proof: returns null when not a skill. */
+  const readSkillDrop = (e: React.DragEvent): string | null => {
+    const raw = e.dataTransfer.getData("application/x-tradewars-skill");
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as { skillId?: string };
+      return parsed.skillId ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const allowDrop = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("application/x-tradewars-skill")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  };
 
   return (
     <div className="action-bar">
@@ -85,9 +108,16 @@ export default function ActionBar() {
         className="action-bar__slot action-bar__mouse"
         title={`Linksklick: ${lmb.title}`}
         style={lmb.borderColor ? { borderColor: lmb.borderColor } : undefined}
+        onDragOver={allowDrop}
+        onDrop={(e) => {
+          const skillId = readSkillDrop(e);
+          if (!skillId) return;
+          e.preventDefault();
+          void sendBindMouseSkill(0, skillId);
+        }}
       >
         <span className="action-bar__hotkey">LMB</span>
-        <span className="action-bar__icon">{lmb.icon}</span>
+        <SkillIconView icon={lmb.icon} className="action-bar__icon" alt={lmb.title} />
       </button>
 
       {actionBar.slots.map((binding, i) => {
@@ -99,10 +129,19 @@ export default function ActionBar() {
             className="action-bar__slot"
             title={v.title}
             onClick={() => void sendUseActionSlot(i)}
+            onDragOver={allowDrop}
+            onDrop={(e) => {
+              const skillId = readSkillDrop(e);
+              if (!skillId) return;
+              e.preventDefault();
+              void sendSetActionSlotSkill(i, skillId);
+            }}
             style={v.borderColor ? { borderColor: v.borderColor } : undefined}
           >
             <span className="action-bar__hotkey">{i + 1}</span>
-            {v.icon ? <span className="action-bar__icon">{v.icon}</span> : null}
+            {v.icon ? (
+              <SkillIconView icon={v.icon} className="action-bar__icon" alt={v.title} />
+            ) : null}
           </button>
         );
       })}
@@ -112,9 +151,16 @@ export default function ActionBar() {
         className="action-bar__slot action-bar__mouse"
         title={`Rechtsklick: ${rmb.title}`}
         style={rmb.borderColor ? { borderColor: rmb.borderColor } : undefined}
+        onDragOver={allowDrop}
+        onDrop={(e) => {
+          const skillId = readSkillDrop(e);
+          if (!skillId) return;
+          e.preventDefault();
+          void sendBindMouseSkill(1, skillId);
+        }}
       >
         <span className="action-bar__hotkey">RMB</span>
-        <span className="action-bar__icon">{rmb.icon}</span>
+        <SkillIconView icon={rmb.icon} className="action-bar__icon" alt={rmb.title} />
       </button>
 
       <Orb kind="mana" value={Math.floor(mana)} max={Math.floor(maxMana)} pct={manaPct} />

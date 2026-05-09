@@ -7,6 +7,36 @@
   padding: 0;
 }
 
+/* ─── Fonts (Diablo-style: Friz Quadrata for headings, Fontin for body) ───── */
+@font-face {
+  font-family: "FrizQuadrata";
+  src: url("../assets/fonts/Friz Quadrata Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "FrizQuadrata";
+  src: url("../assets/fonts/Friz Quadrata Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fontin";
+  src: url("../assets/fonts/Fontin-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Ringbearer";
+  src: url("../assets/fonts/Ringbearer Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --gold: #ffd700;
   --dark: #0a0e17;
@@ -14,8 +44,21 @@
   --accent: #10b981;
   --danger: #ef4444;
   --border: #333;
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "FrizQuadrata", "Palatino Linotype", "Palatino", serif;
+  --font-body: "Fontin", "Palatino Linotype", "Segoe UI", system-ui, sans-serif;
+  --font-fancy: "Ringbearer", "FrizQuadrata", serif;
+  font-family: var(--font-body);
   color: #e2e8f0;
+}
+
+/* Headings + HUD chrome use the Diablo-flavored display face. */
+h1, h2, h3, h4, h5, h6,
+.portrait__name,
+.minimap__zone,
+.action-bar__hotkey,
+.d2-orb__label {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
 }
 
 html, body, #root {
@@ -196,16 +239,157 @@ html, body, #root {
   margin-left: 4px;
 }
 
+/* ─── Portrait Bar (Player + Target) ───────────────── */
+.portrait-bar-wrap {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.portrait {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: linear-gradient(180deg, rgba(15, 18, 28, 0.92) 0%, rgba(8, 10, 16, 0.92) 100%);
+  border: 1px solid #5b4a3a;
+  border-radius: 6px;
+  min-width: 220px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+
+.portrait--target {
+  border-color: #facc15;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 8px rgba(250, 204, 21, 0.25);
+}
+
+.portrait__icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #3a2b14;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.portrait__icon--enemy {
+  border-color: #6b1d1d;
+  background: rgba(40, 10, 10, 0.6);
+}
+
+.portrait__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.portrait__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #facc15;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.portrait__sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.portrait-bar {
+  position: relative;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.portrait-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  transition: width 120ms linear;
+}
+
+.portrait-bar__text {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 6px;
+  height: 100%;
+  font-size: 10px;
+  color: #f4f4f5;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9);
+  font-weight: 600;
+}
+
+/* Slim variant — used for the XP bar below the HP/Mana stack. */
+.portrait-bar--slim {
+  height: 5px;
+  margin-top: 2px;
+  border-color: #1f1a14;
+}
+
+.portrait__immune {
+  font-size: 10px;
+  color: #f87171;
+  margin-top: 2px;
+}
+.portrait__immune--none {
+  color: #6b7280;
+  font-style: italic;
+}
+.portrait__immune-tag {
+  font-weight: 700;
+}
+
 /* ─── Minimap ──────────────────────────────────────── */
 .hud-minimap {
   position: absolute;
-  top: 56px;
+  top: 8px;
   right: 8px;
-  pointer-events: none;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 140px;
+}
+
+.hud-minimap__zone {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #facc15;
+  text-align: center;
+  padding: 3px 6px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #5b4a3a;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .hud-minimap canvas {
-  border-radius: 6px;
+  border-radius: 0 0 6px 6px;
   border: 1px solid var(--border);
 }
 
@@ -610,13 +794,48 @@ html, body, #root {
   top: 2px;
   left: 4px;
   font-size: 10px;
-  color: #aaa;
+  color: #000;
   font-weight: 700;
   pointer-events: none;
+  /* Halo so the black core stays readable on dark icon art. */
+  text-shadow:
+    0 0 3px #fff,
+    0 0 2px #fff,
+    0 0 1px #fff,
+    0 1px 0 #fff,
+    0 -1px 0 #fff,
+    1px 0 0 #fff,
+    -1px 0 0 #fff;
 }
 
 .action-bar__icon {
   line-height: 1;
+}
+
+/* When the icon is an `<img>` it should fill the slot square crisply. */
+.skill-icon-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  user-select: none;
+  pointer-events: none;
+}
+.action-bar__icon.skill-icon-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 4px;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6) inset;
+}
+.skill-card__icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid #3a2b14;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
 }
 
 /* ─── BagBar (bottom-right) ─────────────────────── */
@@ -1028,6 +1247,21 @@ html, body, #root {
   letter-spacing: 1px;
   padding: 4px 6px 6px;
   border-bottom: 1px solid rgba(196, 168, 100, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.waypoint-close {
+  background: transparent;
+  border: none;
+  color: #c4a864;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+  line-height: 1;
+}
+.waypoint-close:hover {
+  color: #facc15;
 }
 .waypoint-empty {
   font-size: 11px;

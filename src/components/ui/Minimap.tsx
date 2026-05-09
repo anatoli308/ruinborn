@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useGameStore } from "../../store/gameStore";
 
-/** Mini-map showing player and trading post positions */
+const MINIMAP_SIZE = 140;
+const WORLD_HALF = 100; // world coordinates run -100..100
+
+/** Mini-map showing player, markets, enemies and loot. Waypoint stones are clickable in the 3D world, not here. */
 export default function Minimap() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerX = useGameStore((s) => s.playerX);
@@ -9,6 +12,11 @@ export default function Minimap() {
   const playerMarkets = useGameStore((s) => s.playerMarkets);
   const enemies = useGameStore((s) => s.enemies);
   const lootDrops = useGameStore((s) => s.lootDrops);
+  const zoneId = useGameStore((s) => s.zone);
+  const zones = useGameStore((s) => s.zones);
+
+  const currentZone = zones.find((z) => z.id === zoneId);
+  const zoneLabel = currentZone?.name ?? zoneId;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -18,20 +26,20 @@ export default function Minimap() {
 
     const w = canvas.width;
     const h = canvas.height;
-    const scale = w / 200; // world = -100..100
+    const scale = w / (WORLD_HALF * 2);
 
     ctx.fillStyle = "#0a0e17";
     ctx.fillRect(0, 0, w, h);
 
     // Zone overlays — D2-style colored areas so the player can read the world.
-    const zones: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; fill: string; label: string }> = [
-      { minX: -30, maxX: 30, minZ: -30, maxZ: 30, fill: "rgba(180, 120, 60, 0.30)", label: "Stadt" },
-      { minX: -60, maxX: 60, minZ: 30,  maxZ: 90, fill: "rgba(80, 140, 70, 0.18)", label: "Wildnis" },
-      { minX: 60,  maxX: 120, minZ: 30, maxZ: 120, fill: "rgba(120, 70, 120, 0.20)", label: "Gräberfeld" },
+    const overlays: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; fill: string }> = [
+      { minX: -30, maxX: 30, minZ: -30, maxZ: 30, fill: "rgba(180, 120, 60, 0.30)" },
+      { minX: -60, maxX: 60, minZ: 30, maxZ: 90, fill: "rgba(80, 140, 70, 0.18)" },
+      { minX: 60, maxX: 120, minZ: 30, maxZ: 120, fill: "rgba(120, 70, 120, 0.20)" },
     ];
-    for (const z of zones) {
-      const x = (z.minX + 100) * scale;
-      const y = (z.minZ + 100) * scale;
+    for (const z of overlays) {
+      const x = (z.minX + WORLD_HALF) * scale;
+      const y = (z.minZ + WORLD_HALF) * scale;
       const zw = (z.maxX - z.minX) * scale;
       const zh = (z.maxZ - z.minZ) * scale;
       ctx.fillStyle = z.fill;
@@ -41,51 +49,36 @@ export default function Minimap() {
     // Town wall outline.
     ctx.strokeStyle = "#b08840";
     ctx.lineWidth = 1;
-    ctx.strokeRect((-30 + 100) * scale, (-30 + 100) * scale, 60 * scale, 60 * scale);
+    ctx.strokeRect((-30 + WORLD_HALF) * scale, (-30 + WORLD_HALF) * scale, 60 * scale, 60 * scale);
 
     // Enemies
     for (const e of enemies) {
       if (e.state === "dead") continue;
-      const ex = (e.x + 100) * scale;
-      const ez = (e.z + 100) * scale;
+      const ex = (e.x + WORLD_HALF) * scale;
+      const ez = (e.z + WORLD_HALF) * scale;
       ctx.fillStyle = "#e74c3c";
       ctx.fillRect(ex - 1, ez - 1, 3, 3);
     }
 
     // Loot drops
     for (const l of lootDrops) {
-      const lx = (l.x + 100) * scale;
-      const lz = (l.z + 100) * scale;
+      const lx = (l.x + WORLD_HALF) * scale;
+      const lz = (l.z + WORLD_HALF) * scale;
       ctx.fillStyle = "#ffaa00";
       ctx.fillRect(lx, lz, 2, 2);
     }
 
     // Player markets
     for (const m of playerMarkets) {
-      const mx = (m.x + 100) * scale;
-      const mz = (m.z + 100) * scale;
+      const mx = (m.x + WORLD_HALF) * scale;
+      const mz = (m.z + WORLD_HALF) * scale;
       ctx.fillStyle = "#ffd700";
       ctx.fillRect(mx - 2, mz - 2, 5, 5);
     }
 
-    // Waypoint stones (one per zone — must match world.rs).
-    const waypoints = [
-      { x: 0,  z: 0,  color: "#3b82f6" },
-      { x: 0,  z: 60, color: "#3b82f6" },
-      { x: 90, z: 75, color: "#3b82f6" },
-    ];
-    for (const wp of waypoints) {
-      const wx = (wp.x + 100) * scale;
-      const wz = (wp.z + 100) * scale;
-      ctx.fillStyle = wp.color;
-      ctx.beginPath();
-      ctx.arc(wx, wz, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
     // Player
-    const px = (playerX + 100) * scale;
-    const pz = (playerZ + 100) * scale;
+    const px = (playerX + WORLD_HALF) * scale;
+    const pz = (playerZ + WORLD_HALF) * scale;
     ctx.fillStyle = "#00ff00";
     ctx.beginPath();
     ctx.arc(px, pz, 3, 0, Math.PI * 2);
@@ -102,10 +95,11 @@ export default function Minimap() {
 
   return (
     <div className="hud-minimap">
+      <div className="hud-minimap__zone">{zoneLabel}</div>
       <canvas
         ref={canvasRef}
-        width={140}
-        height={140}
+        width={MINIMAP_SIZE}
+        height={MINIMAP_SIZE}
         className="rounded border border-gray-700 bg-black/80"
       />
     </div>

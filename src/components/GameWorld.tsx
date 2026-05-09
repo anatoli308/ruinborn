@@ -1,5 +1,6 @@
 import { Canvas } from "@react-three/fiber";
 import { Stats } from "@react-three/drei";
+import type { RefObject } from "react";
 import Terrain from "./world/Terrain";
 import TradingPostMesh from "./world/TradingPostMesh";
 import Player from "./world/Player";
@@ -7,10 +8,16 @@ import OtherPlayers from "./world/OtherPlayers";
 import FollowCamera from "./world/FollowCamera";
 import Enemies from "./world/Enemies";
 import LootDrops from "./world/LootDrops";
+import Waypoints from "./world/Waypoints";
 import { useGameStore } from "../store/gameStore";
 
+interface GameWorldProps {
+  /** Anchor element the FPS counter mounts into (positioned bottom-left in CSS). */
+  fpsAnchorRef?: RefObject<HTMLDivElement | null>;
+}
+
 /** The full 3D game world rendered via R3F */
-export default function GameWorld() {
+export default function GameWorld({ fpsAnchorRef }: GameWorldProps) {
   const playerMarkets = useGameStore((s) => s.playerMarkets);
 
   return (
@@ -51,13 +58,16 @@ export default function GameWorld() {
       <Enemies />
       <LootDrops />
 
+      {/* Waypoint stones — clickable in-world to open travel menu */}
+      <Waypoints />
+
       {/* Player */}
       <Player />
       <OtherPlayers />
       <FollowCamera />
 
-      {/* FPS Counter (top-left) */}
-      <Stats />
+      {/* FPS Counter (anchored bottom-left via parent ref + CSS) */}
+      <Stats parent={fpsAnchorRef as RefObject<HTMLElement>} />
     </Canvas>
   );
 }

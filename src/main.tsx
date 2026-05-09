@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles/index.css";
+import "./styles/game-menu.css";
 
 // Disable native context menu (no "save image as / copy image / inspect" in production).
 window.addEventListener("contextmenu", (e) => e.preventDefault());

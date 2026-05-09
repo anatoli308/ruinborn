@@ -1,0 +1,98 @@
+/* === GameMenu (standalone, bottom-left, mirror of BagBar) ============ */
+.game-menu {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 20;
+}
+
+.game-menu__toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #2a241a, #14110b);
+  border: 1px solid #5b4a3a;
+  color: #e0c890;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 120ms, transform 120ms, box-shadow 120ms;
+}
+
+.game-menu__toggle:hover {
+  border-color: #c4a864;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(196, 168, 100, 0.35);
+}
+
+.game-menu__popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  background: linear-gradient(180deg, rgba(20, 18, 14, 0.97), rgba(8, 7, 5, 0.98));
+  border: 1px solid #5b4a3a;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 50;
+}
+
+.game-menu__item {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #e0c890;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+.game-menu__item:hover {
+  background: rgba(196, 168, 100, 0.12);
+  border-color: #5b4a3a;
+  color: #fff;
+}
+
+.game-menu__item--danger {
+  color: #f08080;
+}
+
+.game-menu__item--danger:hover {
+  background: rgba(220, 80, 80, 0.18);
+  border-color: #883030;
+  color: #fff;
+}
+
+/* === FPS counter anchor (drei <Stats> mounts here) ====================
+   stats.js writes inline `position:fixed; top:0; left:0` on its DOM
+   element. Because it's `fixed`, parent layout has no effect — we just
+   override top/left to bottom/left so it stays on-screen. */
+.fps-anchor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.fps-anchor > div {
+  top: auto !important;
+  left: 16px !important;
+  bottom: 64px !important;
+  pointer-events: auto;
+}

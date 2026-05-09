@@ -2,19 +2,33 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameStore } from "../../store/gameStore";
+import FlareSprite, { angleToFlareDirection } from "./FlareSprite";
 
-const SPEED = 12;
+const SPEED = 7;
 const WORLD_BOUND = 90;
 const MAX_FRAME_DELTA = 0.1;
 /** How fast the predicted position converges to the server position */
 const RECONCILE_LERP = 0.15;
 const RECONCILE_SNAP_DISTANCE = 8;
 
+/** Render order: back layers first so depth-sort + alphaTest stack cleanly. */
+const PLAYER_LAYERS = [
+  "default_legs",
+  "default_feet",
+  "default_chest",
+  "default_hands",
+  "head_short",
+];
+
 /** Player character with WASD movement — client-side predicted, server-reconciled */
 export default function Player() {
   const group = useRef<THREE.Group>(null!);
-  const indicator = useRef<THREE.Mesh>(null!);
   const keys = useRef<Record<string, boolean>>({});
+
+  // Sprite animation + facing — refs so FlareSprite reads them without re-renders.
+  const animationRef = useRef("stance");
+  const directionRef = useRef(0);
+  const facingRef = useRef(0);
 
   const sendMove = useGameStore((s) => s.sendMove);
   const sendToggleTradePanel = useGameStore((s) => s.sendToggleTradePanel);
@@ -23,6 +37,8 @@ export default function Player() {
   const toggleInventory = useGameStore((s) => s.toggleInventory);
   const toggleCharacter = useGameStore((s) => s.toggleCharacter);
   const toggleSkillTree = useGameStore((s) => s.toggleSkillTree);
+  const cycleTarget = useGameStore((s) => s.cycleTarget);
+  const setTargetEnemy = useGameStore((s) => s.setTargetEnemy);
   const showTradePanel = useGameStore((s) => s.showTradePanel);
 
   // Predicted local position (renders immediately, reconciles with server)
@@ -57,6 +73,14 @@ export default function Player() {
         e.preventDefault();
         toggleSkillTree();
       }
+      if (e.code === "Tab") {
+        // WoW-style: cycle the closest alive enemy in the current zone.
+        e.preventDefault();
+        cycleTarget();
+      }
+      if (e.code === "Escape") {
+        setTargetEnemy(null);
+      }
       if (e.code.startsWith("Digit")) {
         const n = Number(e.code.slice(5));
         if (n >= 1 && n <= 9) {
@@ -75,7 +99,7 @@ export default function Player() {
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
     };
-  }, [sendCreateMarket, sendToggleTradePanel, sendUseActionSlot, toggleInventory, toggleCharacter, toggleSkillTree]);
+  }, [sendCreateMarket, sendToggleTradePanel, sendUseActionSlot, toggleInventory, toggleCharacter, toggleSkillTree, cycleTarget, setTargetEnemy]);
 
   useFrame((_, delta) => {
     if (showTradePanel) return;
@@ -107,9 +131,15 @@ export default function Player() {
       // Send movement to server
       sendMove(dx, dz);
 
-      // Face direction
-      group.current.rotation.y = Math.atan2(dx, -dz);
+      // Track facing for sprite direction (group itself is NOT rotated — the
+      // FlareSprite billboards toward the camera independently).
+      facingRef.current = Math.atan2(dx, -dz);
+      animationRef.current = "run";
+    } else {
+      animationRef.current = "stance";
     }
+
+    directionRef.current = angleToFlareDirection(facingRef.current);
 
     // Reconcile: smoothly lerp predicted position toward server-authoritative position
     const errX = playerX - predictedPos.current.x;
@@ -125,33 +155,19 @@ export default function Player() {
       predictedPos.current.z += errZ * RECONCILE_LERP;
     }
 
-    // Apply predicted position to mesh
-    group.current.position.set(predictedPos.current.x, 0, predictedPos.current.z);
-
-    // Floating indicator animation
-    if (indicator.current) {
-      indicator.current.rotation.y += delta * 2;
-      indicator.current.position.y = 1.6 + Math.sin(Date.now() * 0.003) * 0.1;
-    }
+    // Apply predicted position to mesh — small Y lift keeps the sprite's
+    // bottom rows above the ground plane (FLARE pivot sits a few px above
+    // the frame's bottom edge, so the mesh extends slightly below origin).
+    group.current.position.set(predictedPos.current.x, 0.2, predictedPos.current.z);
   });
 
   return (
     <group ref={group} name="local-player">
-      {/* Body */}
-      <mesh position={[0, 0.8, 0]} castShadow>
-        <capsuleGeometry args={[0.3, 0.6, 4, 8]} />
-        <meshStandardMaterial color="#ffd700" roughness={0.4} metalness={0.3} />
-      </mesh>
-      {/* Head */}
-      <mesh position={[0, 1.4, 0]} castShadow>
-        <sphereGeometry args={[0.22, 8, 8]} />
-        <meshStandardMaterial color="#ffcc88" />
-      </mesh>
-      {/* Floating indicator */}
-      <mesh ref={indicator} position={[0, 1.6, 0]}>
-        <octahedronGeometry args={[0.12, 0]} />
-        <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={0.5} />
-      </mesh>
+      <FlareSprite
+        layers={PLAYER_LAYERS}
+        animationRef={animationRef}
+        directionRef={directionRef}
+      />
     </group>
   );
 }

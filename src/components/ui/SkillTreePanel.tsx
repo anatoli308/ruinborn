@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useGameStore } from "../../store/gameStore";
 import { SKILL_CATALOG, classInfo } from "../../data/classes";
+import SkillIconView from "./SkillIconView";
 import type { SkillDef } from "../../types";
 
 const EFFECT_LABEL: Record<SkillDef["effect"], string> = {
@@ -133,12 +134,22 @@ export default function SkillTreePanel() {
             return (
               <div
                 key={sk.id}
+                draggable={known && !locked}
+                onDragStart={(e) => {
+                  if (!known || locked) return;
+                  e.dataTransfer.setData(
+                    "application/x-tradewars-skill",
+                    JSON.stringify({ skillId: sk.id }),
+                  );
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
                 style={{
                   padding: 12,
                   background: locked ? "#0b1220" : "#111827",
                   border: `1px solid ${known ? "#a78bfa" : "#374151"}`,
                   borderRadius: 6,
                   opacity: locked ? 0.5 : 1,
+                  cursor: known && !locked ? "grab" : "default",
                 }}
               >
                 <div
@@ -148,8 +159,11 @@ export default function SkillTreePanel() {
                     alignItems: "baseline",
                   }}
                 >
-                  <div style={{ fontWeight: 700, color: "#e5e7eb" }}>
-                    {sk.name}
+                  <div style={{ fontWeight: 700, color: "#e5e7eb", display: "flex", alignItems: "center", gap: 6 }}>
+                    {sk.icon ? (
+                      <SkillIconView icon={sk.icon} className="skill-card__icon" alt={sk.name} />
+                    ) : null}
+                    <span>{sk.name}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "#9ca3af" }}>
                     Stufe {lvl}

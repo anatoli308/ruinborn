@@ -1,4 +1,5 @@
 import type { ClassId, ClassInfo, SkillDef } from "../types";
+import { SKILL_ID_TO_ICON } from "../assets/spell_icons";
 
 /** Class catalog — mirror of `crates/tradewars-game/src/classes.rs::class_definition`. */
 export const CLASS_CATALOG: ClassInfo[] = [
@@ -46,6 +47,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "direct_damage",
     damageType: "physical",
     tags: ["melee"],
+    icon: SKILL_ID_TO_ICON.bash,
     description: "Wuchtiger Hieb gegen ein Ziel.",
   },
   {
@@ -59,6 +61,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "aoe_around",
     damageType: "physical",
     tags: ["melee"],
+    icon: SKILL_ID_TO_ICON.cleave,
     description: "Trifft alle Gegner im Nahbereich.",
   },
   {
@@ -72,6 +75,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "self_buff",
     damageType: null,
     tags: [],
+    icon: SKILL_ID_TO_ICON.battle_cry,
     description: "Brüllen — kurzfristiger Selbst-Buff.",
   },
   // Sorceress
@@ -86,6 +90,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "direct_damage",
     damageType: "fire",
     tags: ["spell", "ranged"],
+    icon: SKILL_ID_TO_ICON.fireball,
     description: "Schleudert eine brennende Kugel.",
   },
   {
@@ -99,6 +104,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "aoe_around",
     damageType: "cold",
     tags: ["spell"],
+    icon: "❄️",
     description: "Eis-Explosion um die Zauberin.",
   },
   {
@@ -112,6 +118,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "teleport",
     damageType: null,
     tags: ["spell"],
+    icon: "✨",
     description: "Springt zu einer Zielposition.",
   },
   // Necromancer
@@ -126,6 +133,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "direct_damage",
     damageType: "magical",
     tags: ["spell", "ranged"],
+    icon: SKILL_ID_TO_ICON.bone_spear,
     description: "Schießt einen magischen Knochenspeer.",
   },
   {
@@ -139,6 +147,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "placeholder",
     damageType: null,
     tags: ["summoning"],
+    icon: SKILL_ID_TO_ICON.raise_skeleton,
     description: "Beschwört einen Skelettkrieger (kommt in Phase 4).",
   },
   {
@@ -152,6 +161,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     effect: "damage_over_time",
     damageType: "poison",
     tags: ["spell", "trap"],
+    icon: "☠️",
     description: "Vergiftet einen Gegner über mehrere Sekunden.",
   },
 ];

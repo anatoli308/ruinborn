@@ -270,4 +270,6 @@ export interface SkillDef {
   damageType: DamageType | null;
   tags: DamageTag[];
   description: string;
+  /** Cosmetic UI icon. Falls back to a generic per-effect icon when omitted. */
+  icon?: string;
 }
