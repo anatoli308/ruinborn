@@ -1,6 +1,8 @@
+pub mod ai;
 pub mod classes;
 pub mod combat;
 pub mod damage;
+pub mod enemy_archetype;
 pub mod items;
 pub mod market;
 pub mod progression;
@@ -10,6 +12,7 @@ pub mod world;
 pub use classes::*;
 pub use combat::*;
 pub use damage::*;
+pub use enemy_archetype::*;
 pub use items::*;
 pub use market::*;
 pub use progression::*;

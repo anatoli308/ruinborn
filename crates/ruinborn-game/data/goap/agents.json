@@ -1,0 +1,211 @@
+{
+  "_comment": "GOAP agent configurations. 'id' must match an entry in data/enemies.json. Edit freely — server reload picks up changes via include_str! on rebuild. Comparison ops: equal, not_equal, greater_than, less_than, greater_or_equal, less_or_equal. Effect ops: set, increase, decrease.",
+  "agents": [
+    {
+      "id": "zombie",
+      "initial_world": {
+        "has_target": false,
+        "in_attack_range": false,
+        "target_dead": false
+      },
+      "goals": [
+        {
+          "id": "kill_target",
+          "label": "Ziel töten",
+          "weight": 1.0,
+          "conditions": [
+            { "key": "target_dead", "op": "equal", "value": true }
+          ]
+        },
+        {
+          "id": "wander",
+          "label": "Umherwandern",
+          "weight": 0.05,
+          "conditions": [
+            { "key": "wandered", "op": "equal", "value": true }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "acquire_target",
+          "label": "Spieler erfassen",
+          "cost": 1.0,
+          "behaviour": "acquire_nearest_player",
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": false }
+          ],
+          "effects": [
+            { "key": "has_target", "op": "set", "value": true }
+          ]
+        },
+        {
+          "id": "chase_target",
+          "label": "Ziel verfolgen",
+          "cost": 2.0,
+          "behaviour": "move_to_target",
+          "target_key": "current_target",
+          "in_range": 1.5,
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": true }
+          ],
+          "effects": [
+            { "key": "in_attack_range", "op": "set", "value": true }
+          ]
+        },
+        {
+          "id": "melee_attack",
+          "label": "Nahkampf",
+          "cost": 1.0,
+          "behaviour": "melee_attack",
+          "target_key": "current_target",
+          "in_range": 1.5,
+          "ticks_to_perform": 30,
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": true },
+            { "key": "in_attack_range", "op": "equal", "value": true }
+          ],
+          "effects": [
+            { "key": "target_dead", "op": "set", "value": true }
+          ]
+        },
+        {
+          "id": "wander_around",
+          "label": "Umherstreifen",
+          "cost": 5.0,
+          "behaviour": "wander",
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": false }
+          ],
+          "effects": [
+            { "key": "wandered", "op": "set", "value": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skeleton",
+      "initial_world": {
+        "has_target": false,
+        "in_attack_range": false,
+        "target_dead": false
+      },
+      "goals": [
+        {
+          "id": "kill_target",
+          "label": "Ziel töten",
+          "weight": 1.0,
+          "conditions": [
+            { "key": "target_dead", "op": "equal", "value": true }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "acquire_target",
+          "label": "Spieler erfassen",
+          "cost": 1.0,
+          "behaviour": "acquire_nearest_player",
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": false }
+          ],
+          "effects": [
+            { "key": "has_target", "op": "set", "value": true }
+          ]
+        },
+        {
+          "id": "chase_target",
+          "label": "Ziel verfolgen",
+          "cost": 2.0,
+          "behaviour": "move_to_target",
+          "target_key": "current_target",
+          "in_range": 1.5,
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": true }
+          ],
+          "effects": [
+            { "key": "in_attack_range", "op": "set", "value": true }
+          ]
+        },
+        {
+          "id": "melee_attack",
+          "label": "Nahkampf",
+          "cost": 1.0,
+          "behaviour": "melee_attack",
+          "target_key": "current_target",
+          "in_range": 1.5,
+          "ticks_to_perform": 25,
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": true },
+            { "key": "in_attack_range", "op": "equal", "value": true }
+          ],
+          "effects": [
+            { "key": "target_dead", "op": "set", "value": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fallen_one",
+      "initial_world": {
+        "has_target": false,
+        "in_attack_range": false,
+        "target_dead": false
+      },
+      "goals": [
+        {
+          "id": "kill_target",
+          "label": "Ziel töten",
+          "weight": 1.0,
+          "conditions": [
+            { "key": "target_dead", "op": "equal", "value": true }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "acquire_target",
+          "label": "Spieler erfassen",
+          "cost": 1.0,
+          "behaviour": "acquire_nearest_player",
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": false }
+          ],
+          "effects": [
+            { "key": "has_target", "op": "set", "value": true }
+          ]
+        },
+        {
+          "id": "chase_target",
+          "label": "Ziel verfolgen",
+          "cost": 2.0,
+          "behaviour": "move_to_target",
+          "target_key": "current_target",
+          "in_range": 1.5,
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": true }
+          ],
+          "effects": [
+            { "key": "in_attack_range", "op": "set", "value": true }
+          ]
+        },
+        {
+          "id": "melee_attack",
+          "label": "Nahkampf",
+          "cost": 1.0,
+          "behaviour": "melee_attack",
+          "target_key": "current_target",
+          "in_range": 1.5,
+          "ticks_to_perform": 20,
+          "preconditions": [
+            { "key": "has_target", "op": "equal", "value": true },
+            { "key": "in_attack_range", "op": "equal", "value": true }
+          ],
+          "effects": [
+            { "key": "target_dead", "op": "set", "value": true }
+          ]
+        }
+      ]
+    }
+  ]
+}

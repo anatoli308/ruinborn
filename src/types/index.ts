@@ -54,7 +54,10 @@ export interface Zone {
 
 // ─── D2 Combat / Enemies / Loot ──────────────────────────────────────────
 
-export type EnemyKind = "zombie" | "skeleton" | "fallen_one";
+// Enemy archetype id from server JSON (e.g. "zombie", "skeleton", "fallen_one").
+// Adding a new monster on the server only requires editing
+// `crates/ruinborn-game/data/enemies.json` — no TS changes needed.
+export type EnemyKind = string;
 export type EnemyState = "idle" | "chase" | "attack" | "dead";
 
 export interface Enemy {

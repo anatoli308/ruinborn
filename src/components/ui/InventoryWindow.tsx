@@ -10,7 +10,7 @@ interface CursorItem {
   item: Item;
 }
 
-/** D2/WoW-style Inventar-Fenster mit Pickup-Cursor und Right-Click-Bind. */
+/** D2/WoW-style inventory window with pickup cursor and right-click bind. */
 export default function InventoryWindow() {
   const inventoryOpen = useGameStore((s) => s.inventoryOpen);
   const setInventoryOpen = useGameStore((s) => s.setInventoryOpen);
@@ -69,7 +69,7 @@ export default function InventoryWindow() {
   return (
     <div className="inv-window">
       <header className="inv-window__header">
-        <h2>Inventar</h2>
+        <h2>Inventory</h2>
         <button type="button" onClick={() => setInventoryOpen(false)} className="inv-window__close">
           ✕
         </button>
@@ -111,11 +111,11 @@ export default function InventoryWindow() {
           ))}
         </div>
       ) : (
-        <p className="inv-window__empty">Kein aktiver Beutel.</p>
+        <p className="inv-window__empty">No active bag.</p>
       )}
 
       <footer className="inv-window__footer">
-        <small>Linksklick: Aufnehmen / Ablegen · Doppelklick: Anlegen · Rechtsklick: Auf Action-Bar legen</small>
+        <small>Left click: pick up / drop · Double click: equip · Right click: place on action bar</small>
         {cursor && (
           <button
             type="button"
@@ -130,7 +130,7 @@ export default function InventoryWindow() {
         )}
       </footer>
 
-      {/* Pickup-Cursor — folgt der Maus */}
+      {/* Pickup cursor — follows the mouse */}
       {cursor && (
         <div
           className="inv-cursor"

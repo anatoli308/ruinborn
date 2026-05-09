@@ -76,9 +76,15 @@ function FlareLayerMesh({
     const mesh = meshRef.current;
     if (!anim || !mesh) return;
 
-    // Reset playhead when the animation changes so play_once cues from frame 0.
+    // Only restart the playhead when entering a `play_once` cue (e.g. a
+    // melee swing) so it can re-trigger from frame 0. Looped / back_forth
+    // animations keep their elapsed time across run↔stance flips so the
+    // sprite doesn't visually "reset" or appear to spin in place when the
+    // animation state toggles rapidly.
     if (lastAnimRef.current !== animName) {
-      elapsedRef.current = 0;
+      if (anim.type === "play_once") {
+        elapsedRef.current = 0;
+      }
       lastAnimRef.current = animName;
     }
     elapsedRef.current += delta * 1000;
@@ -88,7 +94,9 @@ function FlareLayerMesh({
     const texW = img?.naturalWidth ?? 0;
     const texH = img?.naturalHeight ?? 0;
     if (!frame || texW === 0 || texH === 0) {
-      mesh.visible = false;
+      // Keep the previous frame visible while the texture or frame data is
+      // momentarily unavailable — hiding the mesh causes the sprite to
+      // briefly disappear during animation transitions.
       return;
     }
     mesh.visible = true;

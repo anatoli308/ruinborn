@@ -64,7 +64,7 @@ pub fn skill_catalog() -> Vec<SkillDef> {
             name: "Bash",
             class_id: Barbarian,
             mana_cost: 3.0,
-            cooldown_ticks: 3,
+            cooldown_ticks: 60, // 3 s @ 20 Hz
             range: 3.0,
             requires_level: 1,
             effect: DirectDamage { min: 6.0, max: 12.0 },
@@ -76,7 +76,7 @@ pub fn skill_catalog() -> Vec<SkillDef> {
             name: "Cleave",
             class_id: Barbarian,
             mana_cost: 6.0,
-            cooldown_ticks: 8,
+            cooldown_ticks: 160, // 8 s
             range: 3.0,
             requires_level: 6,
             effect: AoeAround { radius: 3.5, min: 4.0, max: 9.0 },
@@ -85,23 +85,23 @@ pub fn skill_catalog() -> Vec<SkillDef> {
         },
         SkillDef {
             id: "battle_cry",
-            name: "Schlachtruf",
+            name: "Battle Cry",
             class_id: Barbarian,
             mana_cost: 10.0,
-            cooldown_ticks: 50,
+            cooldown_ticks: 1000, // 50 s
             range: 0.0,
             requires_level: 12,
-            effect: SelfBuff { buff_id: "battle_cry", duration_ticks: 25 },
+            effect: SelfBuff { buff_id: "battle_cry", duration_ticks: 500 }, // 25 s
             damage_type: None,
             tags: &[],
         },
         // ── Sorceress ──
         SkillDef {
             id: "fireball",
-            name: "Feuerball",
+            name: "Fireball",
             class_id: Sorceress,
             mana_cost: 5.0,
-            cooldown_ticks: 5,
+            cooldown_ticks: 100, // 5 s
             range: 12.0,
             requires_level: 1,
             effect: DirectDamage { min: 10.0, max: 18.0 },
@@ -110,10 +110,10 @@ pub fn skill_catalog() -> Vec<SkillDef> {
         },
         SkillDef {
             id: "frost_nova",
-            name: "Frostnova",
+            name: "Frost Nova",
             class_id: Sorceress,
             mana_cost: 9.0,
-            cooldown_ticks: 25,
+            cooldown_ticks: 500, // 25 s
             range: 0.0,
             requires_level: 6,
             effect: AoeAround { radius: 5.0, min: 5.0, max: 10.0 },
@@ -125,7 +125,7 @@ pub fn skill_catalog() -> Vec<SkillDef> {
             name: "Teleport",
             class_id: Sorceress,
             mana_cost: 12.0,
-            cooldown_ticks: 10,
+            cooldown_ticks: 200, // 10 s
             range: 15.0,
             requires_level: 12,
             effect: Teleport,
@@ -135,10 +135,10 @@ pub fn skill_catalog() -> Vec<SkillDef> {
         // ── Necromancer ──
         SkillDef {
             id: "bone_spear",
-            name: "Knochenspeer",
+            name: "Bone Spear",
             class_id: Necromancer,
             mana_cost: 4.0,
-            cooldown_ticks: 4,
+            cooldown_ticks: 80, // 4 s
             range: 14.0,
             requires_level: 1,
             effect: DirectDamage { min: 8.0, max: 14.0 },
@@ -147,10 +147,10 @@ pub fn skill_catalog() -> Vec<SkillDef> {
         },
         SkillDef {
             id: "raise_skeleton",
-            name: "Skelett beschwören",
+            name: "Raise Skeleton",
             class_id: Necromancer,
             mana_cost: 15.0,
-            cooldown_ticks: 30,
+            cooldown_ticks: 600, // 30 s
             range: 0.0,
             requires_level: 6,
             effect: Placeholder,
@@ -159,13 +159,13 @@ pub fn skill_catalog() -> Vec<SkillDef> {
         },
         SkillDef {
             id: "amplify_damage",
-            name: "Giftwolke",
+            name: "Poison Cloud",
             class_id: Necromancer,
             mana_cost: 6.0,
-            cooldown_ticks: 15,
+            cooldown_ticks: 300, // 15 s
             range: 12.0,
             requires_level: 12,
-            effect: DamageOverTime { dps: 4.0, ticks: 20 },
+            effect: DamageOverTime { dps: 0.2, ticks: 400 }, // 4 dps_logical * 20 s @ 20 Hz
             damage_type: Some(DamageType::Poison),
             tags: &[Spell, Trap],
         },
@@ -194,31 +194,31 @@ pub fn player_knows_skill(player: &PlayerState, skill_id: &str) -> bool {
 /// Spend one unspent skill point on a skill the player meets level requirement for.
 pub fn allocate_skill(state: &mut GameState, player_id: &str, skill_id: &str) -> ActionResult {
     let Some(player) = state.players.get_mut(player_id) else {
-        return ActionResult { success: false, message: "Spieler nicht gefunden".into() };
+        return ActionResult { success: false, message: "Player not found.".into() };
     };
     let Some(class) = player.class_id else {
-        return ActionResult { success: false, message: "Wähle zuerst eine Klasse.".into() };
+        return ActionResult { success: false, message: "Choose a class first.".into() };
     };
     let Some(def) = skill_def(skill_id) else {
-        return ActionResult { success: false, message: "Unbekannte Fertigkeit.".into() };
+        return ActionResult { success: false, message: "Unknown skill.".into() };
     };
     if def.class_id != class {
-        return ActionResult { success: false, message: "Falsche Klasse für diese Fertigkeit.".into() };
+        return ActionResult { success: false, message: "Wrong class for this skill.".into() };
     }
     if player.level < def.requires_level {
         return ActionResult {
             success: false,
-            message: format!("Benötigt Stufe {}.", def.requires_level),
+            message: format!("Requires level {}.", def.requires_level),
         };
     }
     if player.unspent_skill_points == 0 {
-        return ActionResult { success: false, message: "Keine freien Fertigkeitspunkte.".into() };
+        return ActionResult { success: false, message: "No skill points available.".into() };
     }
     let entry = player.allocated_skills.entry(skill_id.to_string()).or_insert(0);
     *entry += 1;
     let new_level = *entry;
     player.unspent_skill_points -= 1;
-    player.notification = format!("✨ {} (Stufe {})", def.name, new_level);
+    player.notification = format!("✨ {} (Rank {})", def.name, new_level);
     ActionResult { success: true, message: "OK".into() }
 }
 
@@ -236,27 +236,27 @@ pub fn cast_skill(
     // Phase 1: validate caster & skill, deduct mana & set cooldown.
     let (px, pz, base_bonus, def) = {
         let Some(p) = state.players.get_mut(player_id) else {
-            return ActionResult { success: false, message: "Spieler nicht gefunden".into() };
+            return ActionResult { success: false, message: "Player not found.".into() };
         };
         if p.is_dead {
-            return ActionResult { success: false, message: "Du bist tot.".into() };
+            return ActionResult { success: false, message: "You are dead.".into() };
         }
         if p.class_id.is_none() {
-            return ActionResult { success: false, message: "Wähle zuerst eine Klasse.".into() };
+            return ActionResult { success: false, message: "Choose a class first.".into() };
         }
         let Some(def) = skill_def(skill_id) else {
-            return ActionResult { success: false, message: "Unbekannte Fertigkeit.".into() };
+            return ActionResult { success: false, message: "Unknown skill.".into() };
         };
         if !player_knows_skill(p, skill_id) {
-            return ActionResult { success: false, message: "Du beherrschst diese Fertigkeit nicht.".into() };
+            return ActionResult { success: false, message: "You don't know this skill.".into() };
         }
         if let Some(&cd) = p.skill_cooldowns.get(skill_id) {
             if cd > 0 {
-                return ActionResult { success: false, message: "Fertigkeit lädt noch nach.".into() };
+                return ActionResult { success: false, message: "Skill is on cooldown.".into() };
             }
         }
         if p.mana < def.mana_cost {
-            return ActionResult { success: false, message: "Nicht genug Mana.".into() };
+            return ActionResult { success: false, message: "Not enough mana.".into() };
         }
         p.mana -= def.mana_cost;
         if def.cooldown_ticks > 0 {
@@ -276,14 +276,14 @@ pub fn cast_skill(
     match &def.effect {
         SkillEffect::DirectDamage { min, max } => {
             let Some(enemy_id) = target_enemy_id else {
-                return ActionResult { success: false, message: "Kein Ziel.".into() };
+                return ActionResult { success: false, message: "No target selected.".into() };
             };
             // Range check from current position.
             let in_range = state.enemies.iter().find(|e| e.id == enemy_id)
                 .map(|e| ((e.x - px).powi(2) + (e.z - pz).powi(2)).sqrt() <= def.range)
                 .unwrap_or(false);
             if !in_range {
-                return ActionResult { success: false, message: "Ziel außer Reichweite.".into() };
+                return ActionResult { success: false, message: "Target out of range.".into() };
             }
             let amount = rng.gen_range(*min..=*max) + base_bonus;
             let dtype = def.damage_type.unwrap_or(DamageType::Physical);
@@ -293,7 +293,7 @@ pub fn cast_skill(
                 if o.killed {
                     if let Some(en) = state.enemies.iter().find(|e| e.id == enemy_id) {
                         if let Some(item) = o.loot.clone() {
-                            killed_loot.push((en.id.clone(), item, ZoneCoords { x: en.x, z: en.z, zone: en.zone }));
+                            killed_loot.push((en.id.clone(), item, ZoneCoords { x: en.x, z: en.z, zone: en.zone.clone() }));
                         }
                     }
                     total_xp += o.xp_reward;
@@ -316,7 +316,7 @@ pub fn cast_skill(
                     if o.killed {
                         if let Some(en) = state.enemies.iter().find(|e| &e.id == eid) {
                             if let Some(item) = o.loot.clone() {
-                                killed_loot.push((en.id.clone(), item, ZoneCoords { x: en.x, z: en.z, zone: en.zone }));
+                                killed_loot.push((en.id.clone(), item, ZoneCoords { x: en.x, z: en.z, zone: en.zone.clone() }));
                             }
                         }
                         total_xp += o.xp_reward;
@@ -328,13 +328,13 @@ pub fn cast_skill(
         }
         SkillEffect::DamageOverTime { dps, ticks } => {
             let Some(enemy_id) = target_enemy_id else {
-                return ActionResult { success: false, message: "Kein Ziel.".into() };
+                return ActionResult { success: false, message: "No target selected.".into() };
             };
             let in_range = state.enemies.iter().find(|e| e.id == enemy_id)
                 .map(|e| ((e.x - px).powi(2) + (e.z - pz).powi(2)).sqrt() <= def.range)
                 .unwrap_or(false);
             if !in_range {
-                return ActionResult { success: false, message: "Ziel außer Reichweite.".into() };
+                return ActionResult { success: false, message: "Target out of range.".into() };
             }
             let dtype = def.damage_type.unwrap_or(DamageType::Poison);
             let dot = DotInstance {
@@ -347,7 +347,7 @@ pub fn cast_skill(
         }
         SkillEffect::Teleport => {
             let (Some(tx), Some(tz)) = (target_x, target_z) else {
-                return ActionResult { success: false, message: "Kein Zielpunkt.".into() };
+                return ActionResult { success: false, message: "No target point.".into() };
             };
             let dx = tx - px;
             let dz = tz - pz;
@@ -397,18 +397,18 @@ pub fn cast_skill(
             p.unspent_skill_points = p.unspent_skill_points.saturating_add(levels);
             if levels > 0 {
                 p.notification = format!(
-                    "⭐ Level Up! Stufe {} (+{} Stat-Punkte, +{} Fertigkeitspunkte)",
+                    "⭐ Level Up! Level {} (+{} stat points, +{} skill points)",
                     p.level,
                     levels * crate::progression::STAT_POINTS_PER_LEVEL,
                     levels,
                 );
             } else if let Some(label) = killed_label {
-                p.notification = format!("⚔️ {} getötet (+{} XP, +{} Gold)", label, total_xp, total_gold);
+                p.notification = format!("⚔️ {} slain (+{} XP, +{} Gold)", label, total_xp, total_gold);
             }
         }
     }
 
-    ActionResult { success: true, message: format!("{} gewirkt", def.name) }
+    ActionResult { success: true, message: format!("{} cast", def.name) }
 }
 
 /// Decrement skill cooldowns and active buff timers — call once per tick.

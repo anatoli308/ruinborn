@@ -1,8 +1,9 @@
 import { useGameStore } from "../../store/gameStore";
 import { rarityColor } from "./rarity";
-import { SKILL_CATALOG } from "../../data/classes";
+import { SKILL_CATALOG, targetingKind, type SkillTargetingKind } from "../../data/classes";
 import { DEFAULT_ATTACK_ICON } from "../../assets/spell_icons";
 import SkillIconView from "./SkillIconView";
+import { useCooldownProgress } from "./useCooldownProgress";
 import type { ActionBinding, SkillEffectKind } from "../../types";
 
 /** Tiny emoji icon per skill effect — kept here so the action bar stays self-contained. */
@@ -37,7 +38,7 @@ function describeBinding(
         borderColor: rarityColor(item.rarity as never),
       };
     }
-    return { icon: "❓", title: "Unbekanntes Item" };
+    return { icon: "❓", title: "Unknown item" };
   }
   if (binding.kind === "skill") {
     const skill = SKILL_CATALOG.find((s) => s.id === binding.skillId);
@@ -47,7 +48,7 @@ function describeBinding(
     };
   }
   if (binding.kind === "attack") {
-    return { icon: DEFAULT_ATTACK_ICON, title: "Standardangriff" };
+    return { icon: DEFAULT_ATTACK_ICON, title: "Default attack" };
   }
   return { icon: fallback, title: fallbackTitle };
 }
@@ -59,7 +60,7 @@ export default function ActionBar() {
   const sendUseActionSlot = useGameStore((s) => s.sendUseActionSlot);
   const sendSetActionSlotSkill = useGameStore((s) => s.sendSetActionSlotSkill);
   const sendBindMouseSkill = useGameStore((s) => s.sendBindMouseSkill);
-  const setHoveredSkillRange = useGameStore((s) => s.setHoveredSkillRange);
+  const setHoveredSkill = useGameStore((s) => s.setHoveredSkill);
   const mouseLeft = useGameStore((s) => s.mouseLeft);
   const mouseRight = useGameStore((s) => s.mouseRight);
   const hp = useGameStore((s) => s.hp);
@@ -67,17 +68,26 @@ export default function ActionBar() {
   const mana = useGameStore((s) => s.mana);
   const maxMana = useGameStore((s) => s.maxMana);
 
-  /** Resolve the skill range hidden behind a binding, or `null` if there is none. */
-  const bindingRange = (binding: ActionBinding | null): number | null => {
+  /** Resolve the skill descriptor (range + targeting kind) for a binding, or `null`. */
+  const bindingDescriptor = (
+    binding: ActionBinding | null,
+  ): { range: number; kind: SkillTargetingKind } | null => {
     if (!binding || binding.kind !== "skill") return null;
     const skill = SKILL_CATALOG.find((s) => s.id === binding.skillId);
-    return skill && skill.range > 0 ? skill.range : null;
+    if (!skill || skill.range <= 0) return null;
+    return { range: skill.range, kind: targetingKind(skill) };
+  };
+
+  /** Skill id behind a binding (used for cooldown overlays), or `null`. */
+  const bindingSkillId = (binding: ActionBinding | null): string | null => {
+    if (!binding || binding.kind !== "skill") return null;
+    return binding.skillId;
   };
 
   const showRangeFor = (binding: ActionBinding | null) => {
-    setHoveredSkillRange(bindingRange(binding));
+    setHoveredSkill(bindingDescriptor(binding));
   };
-  const clearRange = () => setHoveredSkillRange(null);
+  const clearRange = () => setHoveredSkill(null);
 
   const itemIndex = new Map<string, { icon: string; name: string; rarity: string }>();
   for (const bag of bags.bags) {
@@ -87,8 +97,8 @@ export default function ActionBar() {
     }
   }
 
-  const lmb = describeBinding(mouseLeft, itemIndex, DEFAULT_ATTACK_ICON, "Linksklick (Standardangriff)");
-  const rmb = describeBinding(mouseRight, itemIndex, "✋", "Rechtsklick (leer)");
+  const lmb = describeBinding(mouseLeft, itemIndex, DEFAULT_ATTACK_ICON, "Left click (default attack)");
+  const rmb = describeBinding(mouseRight, itemIndex, "✋", "Right click (empty)");
 
   const hpPct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
   const manaPct = maxMana > 0 ? Math.max(0, Math.min(1, mana / maxMana)) : 0;
@@ -119,7 +129,7 @@ export default function ActionBar() {
       <button
         type="button"
         className="action-bar__slot action-bar__mouse"
-        title={`Linksklick: ${lmb.title}`}
+        title={`Left click: ${lmb.title}`}
         style={lmb.borderColor ? { borderColor: lmb.borderColor } : undefined}
         onMouseEnter={() => showRangeFor(mouseLeft)}
         onMouseLeave={clearRange}
@@ -133,6 +143,7 @@ export default function ActionBar() {
       >
         <span className="action-bar__hotkey">LMB</span>
         <SkillIconView icon={lmb.icon} className="action-bar__icon" alt={lmb.title} />
+        <CooldownOverlay skillId={bindingSkillId(mouseLeft)} />
       </button>
 
       {actionBar.slots.map((binding, i) => {
@@ -159,6 +170,7 @@ export default function ActionBar() {
             {v.icon ? (
               <SkillIconView icon={v.icon} className="action-bar__icon" alt={v.title} />
             ) : null}
+            <CooldownOverlay skillId={bindingSkillId(binding)} />
           </button>
         );
       })}
@@ -166,7 +178,7 @@ export default function ActionBar() {
       <button
         type="button"
         className="action-bar__slot action-bar__mouse"
-        title={`Rechtsklick: ${rmb.title}`}
+        title={`Right click: ${rmb.title}`}
         style={rmb.borderColor ? { borderColor: rmb.borderColor } : undefined}
         onMouseEnter={() => showRangeFor(mouseRight)}
         onMouseLeave={clearRange}
@@ -180,6 +192,7 @@ export default function ActionBar() {
       >
         <span className="action-bar__hotkey">RMB</span>
         <SkillIconView icon={rmb.icon} className="action-bar__icon" alt={rmb.title} />
+        <CooldownOverlay skillId={bindingSkillId(mouseRight)} />
       </button>
 
       <Orb kind="mana" value={Math.floor(mana)} max={Math.floor(maxMana)} pct={manaPct} />
@@ -216,6 +229,24 @@ function Orb({
         {max}
       </div>
     </div>
+  );
+}
+
+/**
+ * WoW/LoL-style cooldown sweep + numeric remaining seconds.
+ * Renders nothing while the skill is ready.
+ */
+function CooldownOverlay({ skillId }: { skillId: string | null }) {
+  const { progress, secondsLeft } = useCooldownProgress(skillId);
+  if (progress <= 0 || secondsLeft <= 0) return null;
+  return (
+    <>
+      <div
+        className="cooldown-sweep"
+        style={{ ["--p" as never]: progress }}
+      />
+      <div className="cooldown-text">{secondsLeft}</div>
+    </>
   );
 }
 

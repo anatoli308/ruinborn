@@ -1,7 +1,7 @@
 # Ruinborn — Gesamt-Setup & Umsetzungen
 
-Stand: Phase 3 (Damage Model) abgeschlossen.
-`cargo check --workspace` ✅ · `cargo check` (`src-tauri`) ✅ · `tsc --noEmit` ✅
+Stand: Phase 6 (Data-Driven Zones — full D2 Act 1) abgeschlossen.
+`cargo check --workspace` ✅ · `cargo test -p ruinborn-game` 47/47 ✅ · `cargo check -p ruinborn-server` ✅
 
 Dieses Dokument fasst **das gesamte aktuelle Setup** zusammen — Architektur,
 Module, Datenflüsse, Persistenz, UI und alle bisher umgesetzten Features.
@@ -10,6 +10,9 @@ Module, Datenflüsse, Persistenz, UI und alle bisher umgesetzten Features.
 > - [ARCHITECTURE.md](ARCHITECTURE.md) — Kern-Architektur
 > - [NETWORKING.md](NETWORKING.md) — Tauri/WS Protokoll
 > - [DAMAGE_MODEL.md](DAMAGE_MODEL.md) — Phase 1–3 Klassen/Skills/Damage
+> - [AI.md](AI.md) — Phase 4–5 GOAP-Planner + Boids-Steering
+> - [ZONES.md](ZONES.md) — Phase 6 datengetriebene Zonen, Act 1 Graph
+> - [REFERENCE_VS_SOURCE.md](REFERENCE_VS_SOURCE.md) — Vergleich C++ Referenz
 > - [IDEEN.md](IDEEN.md) — geplante Features
 
 ---
@@ -38,16 +41,24 @@ ruinborn/
 ├── package.json                # Frontend + Tauri scripts
 ├── crates/
 │   ├── ruinborn-game/         # Pure logic, no I/O
+│   │   ├── data/
+│   │   │   ├── zones.json      # Phase 6: 31 Zonen, D2 Act 1
+│   │   │   ├── enemies.json    # Archetype-Registry
+│   │   │   └── goap/agents.json
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── classes.rs      # ClassId, ClassDef
 │   │       ├── combat.rs       # Enemy, EnemyKind, attacks, ticks
 │   │       ├── damage.rs       # DamageType/Tag, Resistances, DotInstance
+│   │       ├── enemy_archetype.rs # JSON-Archetype-Registry, AiKind
 │   │       ├── items.rs        # Items, Rarity, Affix, Equipment
 │   │       ├── market.rs       # GameState, PlayerState, advance_tick
 │   │       ├── progression.rs  # Level/XP-Curve, Stat-Punkte
 │   │       ├── skills.rs       # SkillDef-Catalog, cast_skill
-│   │       └── world.rs        # ZoneId, Trading-Posts, Wegpunkte
+│   │       ├── world.rs        # ZoneId(Arc<str>), Zone, Wegpunkt-Graph
+│   │       └── ai/
+│   │           ├── boids.rs    # Phase 5: Reynolds-Flocking-Steering
+│   │           └── goap/       # Phase 4: A*-Planner + Runtime
 │   ├── ruinborn-protocol/     # WS message types
 │   │   └── src/lib.rs          # ClientMessage / ServerMessage
 │   └── ruinborn-server/       # WS-Server + DB
@@ -298,9 +309,19 @@ pub enum SkillEffect {
 
 ### World (`world.rs`)
 
-- **ZoneId**: `Town`, `Wilderness`, `BurialGrounds`.
+- **`ZoneId`** (Phase 6): `pub struct ZoneId(Arc<str>)` — string-newtype,
+  `Clone/Hash/Eq/Serialize/Deserialize`. Persistierte Saves migrieren via
+  `ZoneId::from_legacy("town" | "wilderness" | "burial_grounds")`.
+- **`Zone`**: `{ id, name, act: u8, kind: ZoneKind, bounds, spawn, waypoint?,
+  enemy_target, neighbors: Vec<ZoneId> }`.
+- **`ZoneKind`**: `Town`, `Wilderness`, `Dungeon` — steuert Spawn-Tabellen via
+  `enemy_archetype::pick_archetype_for_zone`.
+- **Catalogue**: `data/zones.json` (via `include_str!` gebundelt) → 31 Zonen,
+  voller D2-LoD Act-1-Graph mit symmetrischen `neighbors`. Boot-Validierung
+  panic-t auf duplicate ids, dangling neighbours, fehlende Town-Zone.
+- **`WORLD_BOUND`** als globale Welt-Begrenzung (Backstop).
 - Trading-Posts mit `interaction_range`-Constants.
-- `WORLD_BOUND` als Welt-Begrenzung.
+- Details: siehe [ZONES.md](ZONES.md).
 
 ### Progression (`progression.rs`)
 
@@ -458,6 +479,40 @@ dots: s.player.dots ?? [],
 - `amplify_damage` als „Giftwolke" aktiviert (Poison-DoT).
 - Frontend-Mirror: Types, Catalog, Store, `SkillTreePanel`-Targeting +
   Effekt-Label.
+
+### Phase 4 — GOAP (Goal-Oriented Action Planning)
+- Vollständiger A\*-Planner in `ai/goap/` (action.rs · condition.rs ·
+  config.rs · goal.rs · resolver.rs · runtime.rs · world_state.rs).
+- JSON-authored Agents (`data/goap/agents.json`): Goals + Actions + initiale
+  WorldState pro Archetype-Id.
+- Sensoren schreiben `WorldKey`s wie `has_target`, `in_attack_range`,
+  `hp_percent`. Effekte deklarieren versprochene State-Änderungen.
+- `EnemyArchetype.ai` schaltet pro Archetype zwischen `simple_chase` und
+  `goap`. Fallback auf `simple_chase`, wenn keine Agent-Config gefunden wird.
+- Details: [AI.md](AI.md).
+
+### Phase 5 — Boids-Steering
+- `ai/boids.rs` — Reynolds-Flocking (Cohesion · Separation · Alignment) als
+  Movement-Layer unter dem GOAP-`move_to_target`-Behaviour.
+- `BoidSample`-Snapshot pro Tick (Pre-Mutation), pro Enemy einmalig
+  konsultiert — keine `&mut`-Konflikte.
+- Cross-Zone-Filter: Nachbarn aus anderer Zone werden ignoriert (per
+  `ZoneId`-Gleichheit).
+
+### Phase 6 — Datengetriebene Zonen + D2 Act 1
+- `ZoneId` von 3-Variant-Enum auf `Arc<str>`-Newtype migriert (kein Copy mehr,
+  cheap Clone via Arc-RefCount).
+- `Zone`-Struct erweitert um `act: u8` und `neighbors: Vec<ZoneId>`.
+- `data/zones.json` enthält 31 Zonen — Rogue Encampment, Blood Moor, Cold
+  Plains, Stony Field, Tristram, Underground Passage, Dark Wood, Black Marsh,
+  Forgotten Tower, Tamoe Highland, Pit, Monastery Gate, Outer Cloister,
+  Barracks, Jail L1–L3, Inner Cloister, Cathedral, Catacombs L1–L4 …
+- 9 D2-canonische Wegpunkte (Rogue Encampment, Cold Plains, Stony Field, Dark
+  Wood, Black Marsh, Outer Cloister, Jail L1, Inner Cloister, Catacombs L2).
+- Boot-Validierung: panic auf dupes / dangling neighbours / fehlende Town.
+- Persistenz: Spalte bleibt `TEXT`. `ZoneId::from_legacy` migriert Phase-1
+  Saves transparent.
+- Details: [ZONES.md](ZONES.md).
 
 ---
 

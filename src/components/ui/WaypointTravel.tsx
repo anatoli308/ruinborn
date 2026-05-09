@@ -19,18 +19,18 @@ export default function WaypointTravel() {
     <div className="waypoint-panel">
       <div className="waypoint-list">
         <div className="waypoint-header">
-          <span>Wegpunkte</span>
+          <span>Waypoints</span>
           <button
             type="button"
             className="waypoint-close"
             onClick={() => setOpen(false)}
-            title="Schließen"
+            title="Close"
           >
             ✕
           </button>
         </div>
         {travelable.length === 0 && (
-          <div className="waypoint-empty">Keine Wegpunkte freigeschaltet</div>
+          <div className="waypoint-empty">No waypoints unlocked</div>
         )}
         {travelable.map((z) => {
           const isCurrent = z.id === currentZone;
@@ -47,7 +47,7 @@ export default function WaypointTravel() {
             >
               <span className="waypoint-name">{z.name}</span>
               <span className="waypoint-kind">{z.kind}</span>
-              {isCurrent && <span className="waypoint-current"> · hier</span>}
+              {isCurrent && <span className="waypoint-current"> · here</span>}
             </button>
           );
         })}

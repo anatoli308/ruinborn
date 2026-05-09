@@ -36,11 +36,11 @@ export default function ClassSelectModal() {
       >
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <h2 style={{ margin: 0, color: "#facc15", fontSize: 24 }}>
-            ⚔ Wähle deine Klasse
+            ⚔ Choose your class
           </h2>
           <p style={{ margin: "6px 0 0", color: "#9ca3af", fontSize: 13 }}>
-            Diese Wahl ist permanent und definiert deine Basisstats und
-            Starter-Fertigkeiten.
+            This choice is permanent and defines your base stats and
+            starter skills.
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export default function ClassSelectModal() {
               cursor: !picked || submitting ? "not-allowed" : "pointer",
             }}
           >
-            {submitting ? "..." : "Klasse bestätigen"}
+            {submitting ? "..." : "Confirm class"}
           </button>
         </div>
       </div>

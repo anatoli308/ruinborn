@@ -163,17 +163,23 @@ pub async fn load_game_state(
             serde_json::from_value(pm.equipment).unwrap_or_default();
         let stats: Stats =
             serde_json::from_value(pm.stats).unwrap_or_default();
-        let unlocked_waypoints: std::collections::HashSet<ZoneId> =
-            serde_json::from_value(pm.unlocked_waypoints).unwrap_or_else(|_| {
+        let unlocked_waypoints: std::collections::HashSet<ZoneId> = {
+            // Persisted JSON is `["town", "wilderness", ...]` style. Run
+            // every entry through `from_legacy` so Phase-1 saves migrate
+            // to the new ids transparently.
+            let raw: Vec<String> = serde_json::from_value(pm.unlocked_waypoints)
+                .unwrap_or_default();
+            if raw.is_empty() {
                 let mut s = std::collections::HashSet::new();
-                s.insert(ZoneId::Town);
+                s.insert(ZoneId::from_legacy("town"));
                 s
-            });
-        let zone: ZoneId = match pm.zone.as_str() {
-            "wilderness" => ZoneId::Wilderness,
-            "burial_grounds" => ZoneId::BurialGrounds,
-            _ => ZoneId::Town,
+            } else {
+                raw.into_iter()
+                    .map(|s| ZoneId::from_legacy(&s))
+                    .collect()
+            }
         };
+        let zone: ZoneId = ZoneId::from_legacy(&pm.zone);
         let mouse_left = pm.mouse_left.and_then(|v| serde_json::from_value(v).ok());
         let mouse_right = pm.mouse_right.and_then(|v| serde_json::from_value(v).ok());
         let class_id = pm.class_id.as_deref().and_then(ruinborn_game::ClassId::parse);
@@ -352,11 +358,7 @@ pub async fn save_game_state(
                     .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
                 let unlocked_json = serde_json::to_value(&player.unlocked_waypoints)
                     .unwrap_or(serde_json::Value::Array(Vec::new()));
-                let zone_str = match player.zone {
-                    ZoneId::Town => "town",
-                    ZoneId::Wilderness => "wilderness",
-                    ZoneId::BurialGrounds => "burial_grounds",
-                };
+                let zone_str = player.zone.as_str().to_string();
                 let mouse_left_json = player.mouse_left.as_ref().and_then(|b| serde_json::to_value(b).ok());
                 let mouse_right_json = player.mouse_right.as_ref().and_then(|b| serde_json::to_value(b).ok());
                 let class_id_str = player.class_id.map(|c| match c {

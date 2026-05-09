@@ -1,111 +1,115 @@
-# Ruinborn – Social Sandbox MMO
+# Ruinborn — Server-Authoritative Isometric Action MMO RPG
 
-Ein tick-basiertes Wirtschafts-MMO, in dem Spieler Waren handeln, Märkte beeinflussen, Firmen managen und gegeneinander auf Leaderboards antreten. Der Server ist die einzige Autorität — der Client ist ein reiner Renderer.
+> *Born from ruin.* Ein D2-LoD-inspiriertes ARPG mit persistenter Welt, isometrischer 3D-Sicht und 100 % server-autoritativer Simulation.
 
-## Voraussetzungen
+Spielloop: **Monster töten → Loot finden → Build verbessern → Wegpunkte freischalten → tiefere Dungeons**. Wirtschaft, Trading-Posts und Markt-Orders sind als Layer über dem Combat-Core eingebaut, nicht als Hauptfokus.
 
-- **Node.js** ≥ 18 (empfohlen: 22+)
-- **Rust** ≥ 1.70 (für Server + optionaler Tauri-Desktop-Shell)
-- **npm** ≥ 9
+## Genre & Pillars
 
-## Installation
+- **Action-Combat** — 20 Hz Tick, Klick-Targeting, Skill-Casting, LMB/RMB-Bindings
+- **Loot & Buildcraft** — 5 Rarities, gerollte Affixe, Paperdoll, Skill-Tree, Stat-Allocation
+- **Persistente MMO-Welt** — Postgres-Persistenz, alle Spieler im selben `GameState`
+- **D2 Act 1** — 31 datengetriebene Zonen, 9 Wegpunkte, Town/Wilderness/Dungeon-Hierarchie
+- **Server-Autorität** — der Client ist ein reiner Renderer; jede Mutation läuft im Rust-Server
+
+## Quickstart
 
 ```bash
+# Voraussetzungen: Node.js ≥ 18, Rust ≥ 1.70, Postgres erreichbar
 npm install
-```
 
-## Development
-
-### 1. Server starten (Pflicht)
-
-```bash
+# Terminal 1 — dedizierter Game-Server (WS auf :9000)
 npm run server:dev
-```
 
-Startet den dedizierten WebSocket-Gameserver auf `ws://localhost:9000`.
+# Terminal 2a — Browser-Client
+npm run dev                 # http://localhost:1420
 
-### 2a. Frontend im Browser
-
-```bash
-npm run dev
-```
-
-Öffnet auf [http://localhost:1420](http://localhost:1420) — verbindet sich automatisch zum Server.
-
-### 2b. Oder: Desktop-App mit Tauri
-
-```bash
+# oder 2b — Tauri Desktop-Shell
 npm run tauri:dev
 ```
 
-Tauri-Shell mit Hot-Reload (verbindet sich ebenfalls per WebSocket zum Server).
-
-## Production Build
+Production:
 
 ```bash
-npm run server:build          # Server-Binary
-npm run tauri:build            # Desktop-Installer (optional)
+npm run server:build
+npm run tauri:build
 ```
 
 ## Steuerung
 
-| Taste | Aktion |
-|-------|--------|
-| **W A S D** | Spieler bewegen |
-| **E** | Handelsposten öffnen/schließen |
-| **Esc** | Handelspanel schließen |
+| Taste     | Aktion                                  |
+| --------- | --------------------------------------- |
+| `WASD`    | Bewegung                                |
+| `LMB/RMB` | Gebundener Skill bzw. Basis-Angriff     |
+| `1`–`9`   | Action-Bar Hotkeys                      |
+| `I`       | Inventar                                |
+| `C`       | Character / Stats                       |
+| `K`       | Skill-Tree                              |
+| `B`       | Trade-Panel (an Trading-Post)           |
+| `M`       | Wegpunkt-Travel                         |
+| `Esc`     | aktuelles Panel schließen               |
 
-## Techstack
+## Tech-Stack
 
-| Schicht | Technologie |
-|---------|-------------|
-| **Game Server** | Rust, Tokio, WebSocket (`tokio-tungstenite`) |
-| **Game Logic** | `ruinborn-game` Crate (reine Simulation, kein I/O) |
-| **Protokoll** | `ruinborn-protocol` Crate (JSON, `ClientMessage`/`ServerMessage`) |
-| **Frontend** | React 19, TypeScript, Three.js (R3F + Drei) |
-| **State** | Zustand (read-only Mirror des Servers) |
-| **Desktop** | Tauri 2 (optionale Shell, keine IPC — reiner WebSocket-Client) |
-| **Build** | Vite 6, Cargo |
-| **Styling** | Tailwind CSS |
+| Schicht           | Technologie                                                          |
+| ----------------- | -------------------------------------------------------------------- |
+| **Game Server**   | Rust · Tokio · `tokio-tungstenite` (WebSocket) · SeaORM · Postgres   |
+| **Game Logic**    | `ruinborn-game` Crate (pure, kein I/O)                              |
+| **Protokoll**     | `ruinborn-protocol` Crate (JSON `ClientMessage` / `ServerMessage`)  |
+| **Frontend**      | React 19 · TypeScript · Vite 6 · Three.js (R3F + Drei) · Zustand    |
+| **Desktop-Shell** | Tauri 2 (optional; reiner WS-Client, kein IPC)                       |
+| **AI**            | GOAP (A\* Planner, JSON-authored Agents) + Reynolds-Boids Steering   |
+| **Daten**         | JSON-Files für Zonen, Enemies, GOAP-Agents (in `data/`)              |
 
-## Projektstruktur
+## Workspace
 
 ```
-crates/
-├── ruinborn-game/        # Game Logic Library (Simulation, keine I/O)
-│   └── src/market.rs      # Commodities, TradingPosts, Economy Tick, Trades
-├── ruinborn-protocol/    # Shared Message Types (Client ↔ Server)
-│   └── src/lib.rs         # ClientMessage, ServerMessage, DeltaSnapshot
-└── ruinborn-server/      # Dedizierter WebSocket Game Server
-    └── src/main.rs        # Tokio async, Tick Loop, Connection Handler
-
-src/                       # Frontend (React + R3F)
-├── components/
-│   ├── world/             # 3D-Szene: Terrain, Bäume, Wasser, Spieler
-│   ├── ui/                # HUD, Handelspanel, Inventar, Minimap
-│   ├── GameWorld.tsx       # R3F Canvas + Szene
-│   └── GameTicker.tsx      # WebSocket-Verbindung initialisieren
-├── services/
-│   └── wsTransport.ts     # WebSocket Transport Layer (Connect, Send, Reconnect)
-├── store/
-│   └── gameStore.ts       # Zustand Store (Server-Mirror + Actions)
-├── types/
-│   └── index.ts           # Frontend TypeScript Interfaces
-└── styles/
-    └── index.css          # Tailwind + Game UI Styles
-
-src-tauri/                 # Optionale Tauri Desktop Shell
-└── src/lib.rs             # Minimaler Wrapper (kein IPC, kein Game-State)
+ruinborn/
+├── crates/
+│   ├── ruinborn-game/       # Pure Sim-Library
+│   │   ├── data/
+│   │   │   ├── zones.json        # Phase 6: Full D2 Act 1 (31 Zonen)
+│   │   │   ├── enemies.json      # Archetype-Registry
+│   │   │   └── goap/agents.json  # GOAP-Configs pro Archetype
+│   │   └── src/
+│   │       ├── world.rs       # ZoneId, ZoneKind, Catalogue, Wegpunkte
+│   │       ├── combat.rs      # Enemy, Tick, Aggro, Damage-Pipeline
+│   │       ├── damage.rs      # DamageType/Tag, Resistances, DotInstance
+│   │       ├── skills.rs      # SkillDef-Catalog, cast_skill
+│   │       ├── classes.rs     # Barbarian / Sorceress / Necromancer
+│   │       ├── progression.rs # XP-Curve, Level-Up
+│   │       ├── items.rs       # Rarity, Affixes, Bags, Equipment
+│   │       ├── enemy_archetype.rs
+│   │       ├── ai/
+│   │       │   ├── boids.rs   # Reynolds-Flocking
+│   │       │   └── goap/      # Planner + Runtime
+│   │       └── market.rs      # Wirtschaft, GameState, advance_tick
+│   ├── ruinborn-protocol/   # Wire-Format
+│   └── ruinborn-server/     # Tokio + WS + SeaORM-Persistenz
+├── src/                      # Frontend
+├── src-tauri/                # Desktop-Shell
+└── docs/                     # Architektur & Reference-Docs
 ```
 
-## Architektur
+## Dokumentation
 
-Siehe [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) für die vollständige Architektur-Dokumentation.
+| Doc                                                          | Inhalt                                                       |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| [docs/OVERVIEW.md](docs/OVERVIEW.md)                         | Gesamt-Setup, Phasen 1–6, Persistenz, UI                     |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                 | Schichten, Crate-Abhängigkeiten, Datenfluss                  |
+| [docs/NETWORKING.md](docs/NETWORKING.md)                     | Tick-Raten, Delta-Snapshots, Client-Side-Prediction          |
+| [docs/DAMAGE_MODEL.md](docs/DAMAGE_MODEL.md)                 | Phase 1–3: Klassen, Skills, Damage-Pipeline                  |
+| [docs/AI.md](docs/AI.md)                                     | GOAP + Boids — JSON-Agents, Planner, Steering                |
+| [docs/ZONES.md](docs/ZONES.md)                               | Datengetriebene Zonen, D2 Act 1, Wegpunkt-Graph              |
+| [docs/REFERENCE_VS_SOURCE.md](docs/REFERENCE_VS_SOURCE.md)   | Vergleich gegen die C++-Referenz-Sources                     |
+| [docs/IDEEN.md](docs/IDEEN.md)                               | Roadmap & geplante Features                                  |
 
-## Networking & Performance
+## Status
 
-Siehe [docs/NETWORKING.md](docs/NETWORKING.md) für Details zu Tick-Rates, Delta-Updates und Client-side Prediction.
+- ✅ Phasen 1–6 abgeschlossen (Klassen → Skills → Damage → GOAP → Boids → Data-Driven Zones)
+- ✅ `cargo check --workspace` clean · 47/47 Tests grün · Server kompiliert sauber
+- ⏳ Roadmap-Schwerpunkte: Summons, Curses, Boss-Encounters, Auction-House, Multiplayer-AOI
 
-## Feature-Roadmap
+## Lizenz
 
-Siehe [docs/IDEEN.md](docs/IDEEN.md) für geplante Features (Firmen, Finanzmärkte, AI-Agenten, Multiplayer-Strategien).
+Privates Projekt — kein Public License.

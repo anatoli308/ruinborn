@@ -15,7 +15,7 @@ export default function BagBar() {
           className={`bag-bar__slot${bag ? " bag-bar__slot--filled" : ""}${
             inventoryOpen ? " bag-bar__slot--open" : ""
           }`}
-          title={bag ? bag.name : "Leerer Beutel-Slot"}
+          title={bag ? bag.name : "Empty bag slot"}
           onClick={() => toggleInventory()}
         >
           {bag ? "🎒" : "·"}

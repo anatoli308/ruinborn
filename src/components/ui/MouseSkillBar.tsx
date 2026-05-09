@@ -18,7 +18,7 @@ export default function MouseSkillBar() {
 
   const renderSlot = (binding: ActionBinding | null, button: 0 | 1, label: string) => {
     let icon = "⚔";
-    let title = "Angriff (Standard)";
+    let title = "Attack (default)";
     if (binding && binding.kind === "item") {
       const item = itemIndex.get(binding.itemId);
       icon = item?.icon ?? "?";
@@ -29,7 +29,7 @@ export default function MouseSkillBar() {
         key={button}
         type="button"
         className="mouse-skill-slot"
-        title={`${label}: ${title} — Klick zum Zurücksetzen auf Angriff`}
+        title={`${label}: ${title} — click to reset to attack`}
         onClick={() => void sendSetMouseSkill(button, null)}
       >
         <span className="mouse-skill-label">{label}</span>

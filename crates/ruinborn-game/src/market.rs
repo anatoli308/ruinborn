@@ -8,7 +8,7 @@ use crate::combat::{maintain_population, tick_enemies, Enemy, LootDrop};
 use crate::items::{ActionBar, EquipSlotName, Equipment, ItemBags};
 use crate::progression::{starter_progression, Stats};
 use crate::skills::tick_player_skill_timers;
-use crate::world::{build_default_zones, zone_at, zone_by_id, Zone, ZoneId};
+use crate::world::{build_default_zones, town_zone, zone_at, zone_by_id, Zone, ZoneId, ZoneKind};
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -286,16 +286,21 @@ pub fn create_initial_state() -> GameState {
 
 // Resource node generation removed — enemies populate the world now (see combat.rs).
 
-/// Create a new player with starting resources
-pub fn create_player(id: &str, name: &str) -> PlayerState {
+/// Create a new player with starting resources.
+///
+/// Phase 6: takes the zone catalogue so the starting town id is looked up
+/// from data instead of hardcoded — works for any catalogue with at least
+/// one `ZoneKind::Town` zone.
+pub fn create_player(id: &str, name: &str, zones: &[Zone]) -> PlayerState {
     let prog = starter_progression();
+    let town = town_zone(zones);
     let mut unlocked: HashSet<ZoneId> = HashSet::new();
-    unlocked.insert(ZoneId::Town);
+    unlocked.insert(town.id.clone());
     PlayerState {
         id: id.to_string(),
         name: name.to_string(),
-        x: 0.0,
-        z: 0.0,
+        x: town.spawn_x,
+        z: town.spawn_z,
         gold: STARTING_GOLD,
         inventory: HashMap::new(),
         reputation: 0,
@@ -319,7 +324,7 @@ pub fn create_player(id: &str, name: &str) -> PlayerState {
         max_mana: prog.max_mana,
         is_dead: false,
         respawn_in: 0,
-        zone: ZoneId::Town,
+        zone: town.id.clone(),
         unlocked_waypoints: unlocked,
         mouse_left: None,
         mouse_right: None,
@@ -338,10 +343,10 @@ pub fn create_player(id: &str, name: &str) -> PlayerState {
 /// the standard 1-per-level skill points the player has earned so far.
 pub fn choose_class(state: &mut GameState, player_id: &str, class: ClassId) -> ActionResult {
     let Some(player) = state.players.get_mut(player_id) else {
-        return ActionResult { success: false, message: "Spieler nicht gefunden".into() };
+        return ActionResult { success: false, message: "Player not found.".into() };
     };
     if player.class_id.is_some() {
-        return ActionResult { success: false, message: "Klasse bereits gewählt.".into() };
+        return ActionResult { success: false, message: "Class already chosen.".into() };
     }
     let def = class_definition(class);
     player.class_id = Some(class);
@@ -353,7 +358,7 @@ pub fn choose_class(state: &mut GameState, player_id: &str, class: ClassId) -> A
     player.mana = player.max_mana;
     // Give 1 unspent skill point per level past 1 (newly created chars stay at 0).
     player.unspent_skill_points = player.level.saturating_sub(1);
-    player.notification = format!("🛡️ Klasse gewählt: {}", def.name);
+    player.notification = format!("🛡️ Class selected: {}", def.name);
     ActionResult { success: true, message: "OK".into() }
 }
 
@@ -387,13 +392,13 @@ pub fn build_delta_snapshot(
     let player = state.players.get(player_id)?.clone();
     let other_players = build_other_players(state, player_id);
     let economy_changed = state.tick > last_economy_tick;
-    let player_zone = player.zone;
+    let player_zone = &player.zone;
     let enemies: Vec<Enemy> = state.enemies.iter()
-        .filter(|e| e.zone == player_zone)
+        .filter(|e| &e.zone == player_zone)
         .cloned()
         .collect();
     let loot_drops: Vec<LootDrop> = state.loot_drops.iter()
-        .filter(|l| l.zone == player_zone)
+        .filter(|l| &l.zone == player_zone)
         .cloned()
         .collect();
 
@@ -423,18 +428,20 @@ fn build_other_players(state: &GameState, player_id: &str) -> Vec<OtherPlayer> {
 
 // ── Simulation ────────────────────────────────────────────────
 
-/// Advance one economy tick — enemy AI + spawning + missions + cleanup
-pub fn advance_tick(state: &mut GameState) {
-    let mut rng = rand::thread_rng();
-
-    // Clear per-player notifications
+/// 20 Hz combat tick — fast simulation: enemy AI, cooldowns, DoTs, respawn timers.
+///
+/// Runs every server broadcast (every 50 ms). All time-denominated values
+/// inside (skill cooldowns, attack cooldowns, DoT `ticks_remaining`,
+/// `respawn_in`, `despawn_in`, enemy `move_speed`) are in 20 Hz units.
+pub fn advance_combat_tick(state: &mut GameState) {
+    // Clear per-player notifications (they live for one network tick).
     for player in state.players.values_mut() {
         player.notification.clear();
     }
 
-    // ── Combat tick: feed enemy AI with player positions ──
+    // ── Enemy AI + melee hits ──
     let positions: HashMap<String, (ZoneId, f64, f64, bool)> = state.players.iter()
-        .map(|(id, p)| (id.clone(), (p.zone, p.x, p.z, !p.is_dead)))
+        .map(|(id, p)| (id.clone(), (p.zone.clone(), p.x, p.z, !p.is_dead)))
         .collect();
     let hits = tick_enemies(&mut state.enemies, &state.zones, &positions);
     for hit in hits {
@@ -457,13 +464,13 @@ pub fn advance_tick(state: &mut GameState) {
             if player.hp <= 0.0 {
                 player.hp = 0.0;
                 player.is_dead = true;
-                player.respawn_in = 25; // ~5s @ 5tps
-                player.notification = "\u{1F480} Du wurdest get\u{00F6}tet!".into();
+                player.respawn_in = 100; // 5 s @ 20 Hz
+                player.notification = "\u{1F480} You were killed!".into();
             }
         }
     }
 
-    // Tick player DoTs.
+    // ── Player DoT ticks ──
     for player in state.players.values_mut() {
         if player.is_dead { continue; }
         let dot_dmg = crate::damage::tick_dots(&mut player.dots, &player.resistances);
@@ -472,13 +479,13 @@ pub fn advance_tick(state: &mut GameState) {
             if player.hp <= 0.0 {
                 player.hp = 0.0;
                 player.is_dead = true;
-                player.respawn_in = 25;
-                player.notification = "\u{1F480} Du bist an Gift gestorben!".into();
+                player.respawn_in = 100;
+                player.notification = "\u{1F480} You died from poison!".into();
             }
         }
     }
 
-    // Tick enemy DoTs.
+    // ── Enemy DoT ticks ──
     for enemy in state.enemies.iter_mut() {
         if !enemy.is_alive() { continue; }
         let dot_dmg = crate::damage::tick_dots(&mut enemy.dots, &enemy.resistances);
@@ -492,11 +499,13 @@ pub fn advance_tick(state: &mut GameState) {
         }
     }
 
-    // Player respawn timer.
-    let town_spawn = state.zones.iter()
-        .find(|z| z.id == ZoneId::Town)
-        .map(|z| (z.spawn_x, z.spawn_z))
-        .unwrap_or((0.0, 0.0));
+    // ── Player respawn timer ──
+    let (town_id, town_spawn) = {
+        let t = state.zones.iter()
+            .find(|z| z.kind == ZoneKind::Town)
+            .expect("zones must contain a town");
+        (t.id.clone(), (t.spawn_x, t.spawn_z))
+    };
     for player in state.players.values_mut() {
         if player.is_dead {
             if player.respawn_in > 0 {
@@ -507,28 +516,35 @@ pub fn advance_tick(state: &mut GameState) {
                 player.mana = player.max_mana;
                 player.x = town_spawn.0;
                 player.z = town_spawn.1;
-                player.zone = ZoneId::Town;
-                player.notification = "\u{2728} Du bist in der Stadt wiederbelebt.".into();
+                player.zone = town_id.clone();
+                player.notification = "\u{2728} You respawned in town.".into();
             }
         }
     }
 
     // Tick down skill cooldowns + active buff durations.
     tick_player_skill_timers(state);
+}
 
-    // Maintain enemy population.
+/// 1 Hz economy tick — heavy/slow simulation: markets, missions, population,
+/// loot decay. `state.tick` advances here, so any field that stores absolute
+/// economy ticks (`expires_tick`, `dropped_tick`) keeps its 1-second granularity.
+pub fn advance_economy_tick(state: &mut GameState) {
+    let mut rng = rand::thread_rng();
+
+    // Maintain enemy population (spawn replacements, despawn far-away corpses).
     maintain_population(&mut state.enemies, &state.zones, &mut state.next_enemy_id, &mut rng);
 
-    // Loot drops decay after 5 minutes (300 ticks @ 1tps server, but combat at 5tps - approximate).
+    // Loot drops decay after 5 minutes (300 economy ticks).
     let cutoff = state.tick.saturating_sub(300);
     state.loot_drops.retain(|l| l.dropped_tick >= cutoff);
 
-    // Remove fully filled orders
+    // Remove fully filled orders.
     for market in &mut state.player_markets {
         market.orders.retain(|o| o.remaining > 0);
     }
 
-    // Refill mission board
+    // Refill mission board.
     while state.mission_board.len() < MISSION_BOARD_SIZE {
         if let Some(mission) = generate_random_mission(state.tick, &state.commodities, &mut rng) {
             state.mission_board.push(mission);
@@ -537,10 +553,10 @@ pub fn advance_tick(state: &mut GameState) {
         }
     }
 
-    // Expire old missions from board
+    // Expire old missions from the board.
     state.mission_board.retain(|m| m.expires_tick > state.tick);
 
-    // Check player mission expiry
+    // Check player mission expiry.
     for player in state.players.values_mut() {
         let expired: Vec<String> = player.active_missions.iter()
             .filter(|m| m.expires_tick <= state.tick)
@@ -558,6 +574,15 @@ pub fn advance_tick(state: &mut GameState) {
     }
 
     state.tick += 1;
+}
+
+/// Legacy entrypoint preserved for any callers that still expect a single combined
+/// step (e.g. tests or one-shot debug tooling). Production tick loop uses the
+/// split combat/economy entrypoints above.
+#[allow(dead_code)]
+pub fn advance_tick(state: &mut GameState) {
+    advance_combat_tick(state);
+    advance_economy_tick(state);
 }
 
 fn generate_random_mission(
@@ -616,11 +641,11 @@ pub fn move_player(state: &mut GameState, player_id: &str, dx: f64, dz: f64) {
             player.x = new_x;
             player.z = new_z;
             if new_zone != player.zone {
-                player.zone = new_zone;
-                player.unlocked_waypoints.insert(new_zone);
-                if let Some(zone) = zone_by_id(&zones_snapshot, new_zone) {
-                    player.notification = format!("\u{1F5FA}\u{FE0F} Betritt: {}", zone.name);
+                if let Some(zone) = zone_by_id(&zones_snapshot, &new_zone) {
+                    player.notification = format!("\u{1F5FA}\u{FE0F} Entering: {}", zone.name);
                 }
+                player.unlocked_waypoints.insert(new_zone.clone());
+                player.zone = new_zone;
             }
         }
 
@@ -651,7 +676,7 @@ fn find_nearest_in_range<'a>(
 
 /// Gather is removed — kept as no-op for old clients during migration.
 pub fn gather_resource(_state: &mut GameState, _player_id: &str) -> ActionResult {
-    ActionResult { success: false, message: "Gathering wurde durch Kampf ersetzt. Töte Gegner für Loot.".into() }
+    ActionResult { success: false, message: "Gathering replaced by combat. Kill enemies for loot.".into() }
 }
 
 // ── Item / Bag / ActionBar Mutations ──────────────────────────
@@ -740,7 +765,7 @@ pub fn set_action_slot_skill(
     };
     let slot_idx = slot as usize;
     if slot_idx >= ACTION_BAR_SLOTS {
-        return ActionResult { success: false, message: "\u{274C} Ungültiger Slot.".into() };
+        return ActionResult { success: false, message: "\u{274C} Invalid slot.".into() };
     }
     if crate::skills::skill_def(&skill_id).is_none() {
         return ActionResult { success: false, message: "\u{274C} Unbekannte Fertigkeit.".into() };
@@ -826,7 +851,7 @@ pub fn use_action_slot(state: &mut GameState, player_id: &str, slot: u32) -> Act
             )
         }
         Some(ActionBinding::Attack) => {
-            ActionResult { success: false, message: "Nutze Maus, um anzugreifen.".into() }
+            ActionResult { success: false, message: "Use the mouse to attack.".into() }
         }
         None => ActionResult { success: false, message: "\u{274C} Empty slot.".into() },
     }
@@ -1184,10 +1209,10 @@ pub fn player_attack(state: &mut GameState, player_id: &str, enemy_id: &str) -> 
 
     let (px, pz, base_damage, level, current_xp, current_xp_to_next) = {
         let Some(p) = state.players.get(player_id) else {
-            return ActionResult { success: false, message: "Spieler nicht gefunden".into() };
+            return ActionResult { success: false, message: "Player not found.".into() };
         };
         if p.is_dead {
-            return ActionResult { success: false, message: "Du bist tot.".into() };
+            return ActionResult { success: false, message: "You are dead.".into() };
         }
         // Weapon damage from main_hand if equipped, else fists.
         let weapon_dmg = p.equipment.weapon.as_ref()
@@ -1202,7 +1227,7 @@ pub fn player_attack(state: &mut GameState, player_id: &str, enemy_id: &str) -> 
         &mut state.enemies, enemy_id, px, pz, base_damage, state.tick, &mut rng,
     ) {
         Some(o) => o,
-        None => return ActionResult { success: false, message: "Ziel ausser Reichweite oder tot.".into() },
+        None => return ActionResult { success: false, message: "Target out of range or dead.".into() },
     };
 
     // Spawn loot drop on the ground.
@@ -1214,7 +1239,7 @@ pub fn player_attack(state: &mut GameState, player_id: &str, enemy_id: &str) -> 
                 item: item.clone(),
                 x: enemy.x,
                 z: enemy.z,
-                zone: enemy.zone,
+                zone: enemy.zone.clone(),
                 dropped_tick: state.tick,
             });
         }
@@ -1233,12 +1258,12 @@ pub fn player_attack(state: &mut GameState, player_id: &str, enemy_id: &str) -> 
             p.unspent_skill_points = p.unspent_skill_points.saturating_add(levels);
             if levels > 0 {
                 p.notification = format!(
-                    "\u{2B50} Level Up! Stufe {} (+{} Stat-Punkte, +{} Fertigkeitspunkte)",
+                    "\u{2B50} Level Up! Level {} (+{} stat points, +{} skill points)",
                     p.level, levels * crate::progression::STAT_POINTS_PER_LEVEL, levels,
                 );
             } else {
                 p.notification = format!(
-                    "\u{2694}\u{FE0F} {} get\u{00F6}tet (+{} XP, +{} Gold)",
+                    "\u{2694}\u{FE0F} {} slain (+{} XP, +{} Gold)",
                     outcome.enemy_label, outcome.xp_reward, outcome.gold_reward,
                 );
             }
@@ -1247,7 +1272,7 @@ pub fn player_attack(state: &mut GameState, player_id: &str, enemy_id: &str) -> 
 
     ActionResult {
         success: true,
-        message: if outcome.killed { "Kill!".into() } else { format!("{:.0} Schaden", outcome.damage_dealt) },
+        message: if outcome.killed { "Kill!".into() } else { format!("{:.0} damage", outcome.damage_dealt) },
     }
 }
 
@@ -1256,19 +1281,19 @@ pub fn pickup_loot(state: &mut GameState, player_id: &str, loot_id: &str) -> Act
     use crate::combat::LOOT_PICKUP_RANGE;
     let (px, pz) = match state.players.get(player_id) {
         Some(p) if !p.is_dead => (p.x, p.z),
-        _ => return ActionResult { success: false, message: "Du kannst gerade nichts aufheben.".into() },
+        _ => return ActionResult { success: false, message: "You can't pick up anything right now.".into() },
     };
 
     let idx = match state.loot_drops.iter().position(|l| l.id == loot_id) {
         Some(i) => i,
-        None => return ActionResult { success: false, message: "Loot nicht mehr da.".into() },
+        None => return ActionResult { success: false, message: "Loot is gone.".into() },
     };
     let loot = &state.loot_drops[idx];
     let dx = loot.x - px;
     let dz = loot.z - pz;
     let dist = (dx * dx + dz * dz).sqrt();
     if dist > LOOT_PICKUP_RANGE {
-        return ActionResult { success: false, message: "Zu weit weg.".into() };
+        return ActionResult { success: false, message: "Too far away.".into() };
     }
 
     let drop = state.loot_drops.remove(idx);
@@ -1276,7 +1301,7 @@ pub fn pickup_loot(state: &mut GameState, player_id: &str, loot_id: &str) -> Act
         let item_name = drop.item.name.clone();
         match p.bags.try_add(drop.item.clone()) {
             None => {
-                p.notification = format!("\u{1F4E6} Aufgehoben: {}", item_name);
+                p.notification = format!("\u{1F4E6} Picked up: {}", item_name);
                 ActionResult { success: true, message: "OK".into() }
             }
             Some(returned) => {
@@ -1286,14 +1311,14 @@ pub fn pickup_loot(state: &mut GameState, player_id: &str, loot_id: &str) -> Act
                     item: returned,
                     x: drop.x,
                     z: drop.z,
-                    zone: drop.zone,
+                    zone: drop.zone.clone(),
                     dropped_tick: drop.dropped_tick,
                 });
-                ActionResult { success: false, message: "Inventar voll.".into() }
+                ActionResult { success: false, message: "Inventory full.".into() }
             }
         }
     } else {
-        ActionResult { success: false, message: "Spieler weg.".into() }
+        ActionResult { success: false, message: "Player gone.".into() }
     }
 }
 
@@ -1301,39 +1326,39 @@ pub fn pickup_loot(state: &mut GameState, player_id: &str, loot_id: &str) -> Act
 /// zone *and* be standing within `WAYPOINT_USE_RANGE` of a waypoint stone in
 /// their current zone (D2-style — you can't fast-travel from the middle of a
 /// dungeon, you have to walk to the wegpunkt first).
-pub fn travel_waypoint(state: &mut GameState, player_id: &str, target: ZoneId) -> ActionResult {
+pub fn travel_waypoint(state: &mut GameState, player_id: &str, target: &ZoneId) -> ActionResult {
     /// Max distance (units) from the local waypoint stone for travel.
     const WAYPOINT_USE_RANGE: f64 = 6.0;
 
     let zone = match zone_by_id(&state.zones, target) {
         Some(z) => z.clone(),
-        None => return ActionResult { success: false, message: "Zone unbekannt.".into() },
+        None => return ActionResult { success: false, message: "Unknown zone.".into() },
     };
     let Some(player) = state.players.get_mut(player_id) else {
-        return ActionResult { success: false, message: "Spieler nicht gefunden".into() };
+        return ActionResult { success: false, message: "Player not found.".into() };
     };
     if player.is_dead {
-        return ActionResult { success: false, message: "Du bist tot.".into() };
+        return ActionResult { success: false, message: "You are dead.".into() };
     }
-    if !player.unlocked_waypoints.contains(&target) {
-        return ActionResult { success: false, message: "Wegpunkt nicht entdeckt.".into() };
+    if !player.unlocked_waypoints.contains(target) {
+        return ActionResult { success: false, message: "Waypoint not discovered.".into() };
     }
 
     // Player must be near the waypoint stone of their *current* zone.
-    let here = match zone_by_id(&state.zones, player.zone) {
+    let here = match zone_by_id(&state.zones, &player.zone) {
         Some(z) => z.clone(),
-        None => return ActionResult { success: false, message: "Aktuelle Zone unbekannt.".into() },
+        None => return ActionResult { success: false, message: "Current zone unknown.".into() },
     };
     let (hx, hz) = match (here.waypoint_x, here.waypoint_z) {
         (Some(x), Some(z)) => (x, z),
-        _ => return ActionResult { success: false, message: "Hier gibt es keinen Wegpunkt.".into() },
+        _ => return ActionResult { success: false, message: "No waypoint here.".into() },
     };
     let dx = player.x - hx;
     let dz = player.z - hz;
     if (dx * dx + dz * dz).sqrt() > WAYPOINT_USE_RANGE {
         return ActionResult {
             success: false,
-            message: "\u{1F300} Geh zum Wegpunkt-Stein, um zu reisen.".into(),
+            message: "\u{1F300} Walk to the waypoint stone to travel.".into(),
         };
     }
 
@@ -1343,18 +1368,18 @@ pub fn travel_waypoint(state: &mut GameState, player_id: &str, target: ZoneId) -
     };
     player.x = wx;
     player.z = wz;
-    player.zone = target;
-    player.notification = format!("\u{1F300} Reist nach: {}", zone.name);
+    player.zone = target.clone();
+    player.notification = format!("\u{1F300} Traveling to: {}", zone.name);
     ActionResult { success: true, message: "OK".into() }
 }
 
 /// Allocate one unspent stat point. `stat` is one of: strength|dexterity|vitality|energy.
 pub fn allocate_stat(state: &mut GameState, player_id: &str, stat: &str) -> ActionResult {
     let Some(p) = state.players.get_mut(player_id) else {
-        return ActionResult { success: false, message: "Spieler nicht gefunden".into() };
+        return ActionResult { success: false, message: "Player not found.".into() };
     };
     if p.unspent_stat_points == 0 {
-        return ActionResult { success: false, message: "Keine freien Punkte.".into() };
+        return ActionResult { success: false, message: "No unspent points.".into() };
     }
     match stat {
         "strength" => p.stats.strength += 1,
@@ -1374,7 +1399,7 @@ pub fn allocate_stat(state: &mut GameState, player_id: &str, stat: &str) -> Acti
             p.max_mana = new_max;
             p.mana += delta;
         }
-        _ => return ActionResult { success: false, message: "Unbekanntes Attribut.".into() },
+        _ => return ActionResult { success: false, message: "Unknown attribute.".into() },
     }
     p.unspent_stat_points -= 1;
     p.notification = format!("\u{1F4AA} +1 {}", stat);
@@ -1389,12 +1414,12 @@ pub fn set_mouse_skill(
     binding: Option<crate::items::ActionBinding>,
 ) -> ActionResult {
     let Some(p) = state.players.get_mut(player_id) else {
-        return ActionResult { success: false, message: "Spieler nicht gefunden".into() };
+        return ActionResult { success: false, message: "Player not found.".into() };
     };
     match button {
         0 => p.mouse_left = binding,
         1 => p.mouse_right = binding,
-        _ => return ActionResult { success: false, message: "Ung\u{00FC}ltige Maustaste".into() },
+        _ => return ActionResult { success: false, message: "Invalid mouse button.".into() },
     }
     ActionResult { success: true, message: "OK".into() }
 }
@@ -1453,12 +1478,12 @@ pub fn equip_item(
 ) -> ActionResult {
     let player = match state.players.get_mut(player_id) {
         Some(p) => p,
-        None => return ActionResult { success: false, message: "Spieler nicht gefunden.".into() },
+        None => return ActionResult { success: false, message: "Player not found.".into() },
     };
 
     let item = match player.bags.take(bag as usize, slot as usize) {
         Some(it) => it,
-        None => return ActionResult { success: false, message: "\u{274C} Slot ist leer.".into() },
+        None => return ActionResult { success: false, message: "\u{274C} Slot is empty.".into() },
     };
 
     // Welcher Slot?
@@ -1469,7 +1494,7 @@ pub fn equip_item(
             None => {
                 // Item zur\u00fcck in den Bag legen.
                 let _ = player.bags.try_add(item);
-                return ActionResult { success: false, message: "\u{274C} Dieses Item kann nicht angelegt werden.".into() };
+                return ActionResult { success: false, message: "\u{274C} This item can't be equipped.".into() };
             }
         },
     };
@@ -1490,14 +1515,14 @@ pub fn equip_item(
                     player.action_bar.prune_missing(&player.bags);
                     return ActionResult {
                         success: false,
-                        message: format!("\u{26A0}\u{FE0F} Bags voll \u{2014} [{}] bleibt angelegt.", prev_name),
+                        message: format!("\u{26A0}\u{FE0F} Bags full \u{2014} [{}] stays equipped.", prev_name),
                     };
                 }
             }
             player.action_bar.prune_missing(&player.bags);
             ActionResult {
                 success: true,
-                message: format!("\u{2705} [{}] angelegt.", item_name),
+                message: format!("\u{2705} [{}] equipped.", item_name),
             }
         }
         Err(returned) => {
@@ -1505,7 +1530,7 @@ pub fn equip_item(
             let _ = player.bags.try_add(returned);
             ActionResult {
                 success: false,
-                message: "\u{274C} Item passt nicht in diesen Slot.".into(),
+                message: "\u{274C} Item doesn't fit in this slot.".into(),
             }
         }
     }
@@ -1519,12 +1544,12 @@ pub fn unequip_item(
 ) -> ActionResult {
     let player = match state.players.get_mut(player_id) {
         Some(p) => p,
-        None => return ActionResult { success: false, message: "Spieler nicht gefunden.".into() },
+        None => return ActionResult { success: false, message: "Player not found.".into() },
     };
 
     let item = match player.equipment.unequip(target) {
         Some(it) => it,
-        None => return ActionResult { success: false, message: "\u{274C} Slot ist leer.".into() },
+        None => return ActionResult { success: false, message: "\u{274C} Slot is empty.".into() },
     };
 
     let item_name = item.name.clone();
@@ -1533,11 +1558,11 @@ pub fn unequip_item(
         let _ = player.equipment.equip(target, returned);
         return ActionResult {
             success: false,
-            message: "\u{26A0}\u{FE0F} Bags voll \u{2014} Item bleibt angelegt.".into(),
+            message: "\u{26A0}\u{FE0F} Bags full \u{2014} item stays equipped.".into(),
         };
     }
     ActionResult {
         success: true,
-        message: format!("\u{2705} [{}] abgelegt.", item_name),
+        message: format!("\u{2705} [{}] unequipped.", item_name),
     }
 }

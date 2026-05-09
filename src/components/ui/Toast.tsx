@@ -5,7 +5,7 @@ const TOAST_DURATION_MS = 2200;
 const TOAST_FADE_MS = 350;
 
 /**
- * Bottom-center transient banner for failed actions ("Ziel außer Reichweite", "Nicht genug Mana", …).
+ * Bottom-center transient banner for failed actions ("Target out of range", "Not enough mana", …).
  *
  * Driven entirely by `lastError` in the store, which is set whenever the server
  * answers an action with `success: false`. The component schedules its own

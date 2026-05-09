@@ -1384,4 +1384,31 @@ html, body, #root {
   padding-top: 8px;
 }
 
+/* ── Cooldown sweep (WoW/LoL-style action-bar overlay) ───────────────── */
+.cooldown-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    rgba(0, 0, 0, 0.65) 0,
+    rgba(0, 0, 0, 0.65) calc(var(--p) * 1turn),
+    transparent calc(var(--p) * 1turn),
+    transparent 1turn
+  );
+}
+
+.cooldown-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 18px;
+  color: #fff;
+  text-shadow: 0 0 4px #000, 0 1px 0 #000;
+  pointer-events: none;
+}
+
 

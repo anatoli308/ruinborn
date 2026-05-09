@@ -1,159 +1,263 @@
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
+import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { useGameStore } from "../../store/gameStore";
+import biomesJson from "../../data/biomes.json";
+import layoutsJson from "../../data/zone_layouts.json";
+import { SPRITE_TILT } from "./cameraConfig";
 
-const GRID_SPACING = 10;
-const WORLD_BOUND = 90;
-const GRID_COUNT = (WORLD_BOUND * 2) / GRID_SPACING + 1; // 19
+// ── Vite glob: alle Map-Texturen einmalig als URLs einsammeln ────────────
+const TEXTURE_URLS = import.meta.glob<string>("/src/assets/map/*.png", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
 
-// ── Town zone bounds (must match crates/ruinborn-game/src/world.rs) ─────
-const TOWN_MIN_X = -30;
-const TOWN_MAX_X = 30;
-const TOWN_MIN_Z = -30;
-const TOWN_MAX_Z = 30;
-const TOWN_W = TOWN_MAX_X - TOWN_MIN_X; // 60
-const TOWN_D = TOWN_MAX_Z - TOWN_MIN_Z; // 60
-const TOWN_CX = (TOWN_MIN_X + TOWN_MAX_X) / 2; // 0
-const TOWN_CZ = (TOWN_MIN_Z + TOWN_MAX_Z) / 2; // 0
-/** Width of the gate opening on the south wall (toward Wilderness). */
-const GATE_WIDTH = 6;
-const WALL_HEIGHT = 1.6;
-const WALL_THICKNESS = 0.6;
+/** PNG-Dateiname (ohne .png) → URL, oder undefined wenn nicht vorhanden. */
+function texUrl(name: string): string | undefined {
+  return TEXTURE_URLS[`/src/assets/map/${name}.png`];
+}
 
-/** Clean flat grid world — each intersection can hold a player market. */
+// ── Schema-Typen (mirror src/data/biomes.json + zone_layouts.json) ───────
+
+interface BiomePreset {
+  ground: string;
+  ground_tile_size: number;
+  fog_color: string;
+  fog_near: number;
+  fog_far: number;
+  ambient_tint: string;
+  directional_tint: string;
+}
+
+interface PropDef {
+  tex: string;
+  x: number;
+  z: number;
+  scale?: number;
+}
+
+interface WallSegment {
+  tex: string;
+  from: [number, number];
+  to: [number, number];
+  /** Distance between sprites along the segment. Default 3.0. */
+  spacing?: number;
+  /** Sprite scale. Default 3.0. */
+  scale?: number;
+}
+
+interface ZoneLayout {
+  biome: string;
+  ground?: string;
+  props?: PropDef[];
+  walls?: WallSegment[];
+}
+
+const BIOMES = (biomesJson as { biomes: Record<string, BiomePreset> }).biomes;
+const LAYOUTS = (layoutsJson as unknown as { zones: Record<string, ZoneLayout> })
+  .zones;
+
+const FALLBACK_BIOME: BiomePreset = BIOMES.town_camp ?? BIOMES.grassland;
+
+const DEFAULT_BOUNDS = { minX: -40, maxX: 40, minZ: -30, maxZ: 30 };
+const DEFAULT_ZONE_ID = "rogue_encampment";
+
+/** Boden wird ueber den Zonen-Rand hinaus gerendert (Nebel verschluckt den Rand). */
+const GROUND_OVERSCAN = 100;
+
+/**
+ * Strata Zone Renderer — Phase A: Town-Focus.
+ *
+ * • Boden  – stark uebergrosse, gekachelte Plane (verschwindet im Fog → "endlos").
+ * • Props  – fixed-iso Sprites (Plane im Kamera-Pitch geneigt, kein Billboard).
+ * • Walls  – Segmente, automatisch in einzelne Wand-Sprites expandiert.
+ *
+ * Faellt auf rogue_encampment-Defaults zurueck, solange der Server-Snapshot
+ * fehlt — sonst ist der Login-Bildschirm leer.
+ */
 export default function Terrain() {
-  const playerMarkets = useGameStore((s) => s.playerMarkets);
+  const zones = useGameStore((s) => s.zones);
+  const currentZoneId = useGameStore((s) => s.zone);
 
-  const occupiedSet = useMemo(() => {
-    const s = new Set<string>();
-    for (const m of playerMarkets) {
-      s.add(`${m.x},${m.z}`);
-    }
-    return s;
-  }, [playerMarkets]);
+  const liveZone = zones.find((z) => z.id === currentZoneId);
+  const zoneId = liveZone?.id ?? DEFAULT_ZONE_ID;
+  const bounds = liveZone?.bounds ?? DEFAULT_BOUNDS;
 
-  // Grid point positions (only the dots, not occupied slots — markets render separately)
-  const dots = useMemo(() => {
-    const pts: { x: number; z: number }[] = [];
-    for (let i = 0; i < GRID_COUNT; i++) {
-      for (let j = 0; j < GRID_COUNT; j++) {
-        const x = -WORLD_BOUND + i * GRID_SPACING;
-        const z = -WORLD_BOUND + j * GRID_SPACING;
-        pts.push({ x, z });
-      }
-    }
-    return pts;
-  }, []);
+  const layout: ZoneLayout = LAYOUTS[zoneId] ?? LAYOUTS[DEFAULT_ZONE_ID] ?? { biome: "town_camp" };
+  const biome: BiomePreset = BIOMES[layout.biome] ?? FALLBACK_BIOME;
 
-  const dotGeo = useMemo(() => new THREE.CircleGeometry(0.3, 6), []);
+  const groundTexName = layout.ground ?? biome.ground;
+  const groundUrl = texUrl(groundTexName);
 
-  // South-wall gate: split into two segments on either side of the opening.
-  const southSegLen = (TOWN_W - GATE_WIDTH) / 2;
-  const southSegOffset = GATE_WIDTH / 2 + southSegLen / 2;
+  const cx = (bounds.maxX + bounds.minX) / 2;
+  const cz = (bounds.maxZ + bounds.minZ) / 2;
+  const groundWidth = bounds.maxX - bounds.minX + GROUND_OVERSCAN * 2;
+  const groundDepth = bounds.maxZ - bounds.minZ + GROUND_OVERSCAN * 2;
+
+  const propSprites = useMemo(() => expandProps(layout.props), [layout.props]);
+  const wallSprites = useMemo(() => expandWalls(layout.walls), [layout.walls]);
 
   return (
-    <>
-      {/* Flat ground (full world) */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[200, 200]} />
-        <meshStandardMaterial color="#1a1e2a" roughness={1} />
-      </mesh>
+    <Suspense fallback={null}>
+      {groundUrl ? (
+        <Ground
+          url={groundUrl}
+          width={groundWidth}
+          depth={groundDepth}
+          cx={cx}
+          cz={cz}
+          tileSize={biome.ground_tile_size}
+        />
+      ) : (
+        <SolidGround width={groundWidth} depth={groundDepth} cx={cx} cz={cz} />
+      )}
 
-      {/* Town floor — warm tone so the safe zone is obvious. */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[TOWN_CX, 0.015, TOWN_CZ]}
-        receiveShadow
-      >
-        <planeGeometry args={[TOWN_W, TOWN_D]} />
-        <meshStandardMaterial color="#3a2e1f" roughness={0.95} />
-      </mesh>
+      {[...propSprites, ...wallSprites].map((p, i) => (
+        <IsoSprite
+          key={`${zoneId}-${i}-${p.tex}`}
+          url={p.url}
+          x={cx + p.x}
+          z={cz + p.z}
+          scale={p.scale}
+        />
+      ))}
+    </Suspense>
+  );
+}
 
-      {/* Town walls — Rogue-Encampment style stone perimeter. */}
-      {/* North wall (top, full length) */}
-      <mesh
-        position={[TOWN_CX, WALL_HEIGHT / 2, TOWN_MIN_Z]}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[TOWN_W, WALL_HEIGHT, WALL_THICKNESS]} />
-        <meshStandardMaterial color="#5b4a3a" roughness={0.9} />
-      </mesh>
-      {/* West wall */}
-      <mesh
-        position={[TOWN_MIN_X, WALL_HEIGHT / 2, TOWN_CZ]}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[WALL_THICKNESS, WALL_HEIGHT, TOWN_D]} />
-        <meshStandardMaterial color="#5b4a3a" roughness={0.9} />
-      </mesh>
-      {/* East wall */}
-      <mesh
-        position={[TOWN_MAX_X, WALL_HEIGHT / 2, TOWN_CZ]}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[WALL_THICKNESS, WALL_HEIGHT, TOWN_D]} />
-        <meshStandardMaterial color="#5b4a3a" roughness={0.9} />
-      </mesh>
-      {/* South wall — split around the gate opening (toward Wilderness, +Z). */}
-      <mesh
-        position={[TOWN_CX - southSegOffset, WALL_HEIGHT / 2, TOWN_MAX_Z]}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[southSegLen, WALL_HEIGHT, WALL_THICKNESS]} />
-        <meshStandardMaterial color="#5b4a3a" roughness={0.9} />
-      </mesh>
-      <mesh
-        position={[TOWN_CX + southSegOffset, WALL_HEIGHT / 2, TOWN_MAX_Z]}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[southSegLen, WALL_HEIGHT, WALL_THICKNESS]} />
-        <meshStandardMaterial color="#5b4a3a" roughness={0.9} />
-      </mesh>
-      {/* Gate posts — golden pillars marking the exit. */}
-      <mesh position={[TOWN_CX - GATE_WIDTH / 2, WALL_HEIGHT / 2 + 0.4, TOWN_MAX_Z]} castShadow>
-        <boxGeometry args={[0.5, WALL_HEIGHT + 0.8, 0.5]} />
-        <meshStandardMaterial color="#b08840" emissive="#553311" emissiveIntensity={0.4} />
-      </mesh>
-      <mesh position={[TOWN_CX + GATE_WIDTH / 2, WALL_HEIGHT / 2 + 0.4, TOWN_MAX_Z]} castShadow>
-        <boxGeometry args={[0.5, WALL_HEIGHT + 0.8, 0.5]} />
-        <meshStandardMaterial color="#b08840" emissive="#553311" emissiveIntensity={0.4} />
-      </mesh>
+// ── Layout-Expansion ─────────────────────────────────────────────────────
 
-      {/* Town waypoint stone (center of the city). */}
-      <mesh position={[0, 0.6, 0]} castShadow>
-        <cylinderGeometry args={[0.7, 0.9, 1.2, 6]} />
-        <meshStandardMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.6} />
+interface ResolvedSprite {
+  tex: string;
+  url: string;
+  x: number;
+  z: number;
+  scale: number;
+}
+
+function expandProps(props: PropDef[] | undefined): ResolvedSprite[] {
+  if (!props) return [];
+  return props
+    .map((p) => {
+      const url = texUrl(p.tex);
+      if (!url) return null;
+      return { tex: p.tex, url, x: p.x, z: p.z, scale: p.scale ?? 2 };
+    })
+    .filter((p): p is ResolvedSprite => p !== null);
+}
+
+function expandWalls(walls: WallSegment[] | undefined): ResolvedSprite[] {
+  if (!walls) return [];
+  const out: ResolvedSprite[] = [];
+  for (const seg of walls) {
+    const url = texUrl(seg.tex);
+    if (!url) continue;
+    const [x1, z1] = seg.from;
+    const [x2, z2] = seg.to;
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const length = Math.hypot(dx, dz);
+    const spacing = seg.spacing ?? 3.0;
+    const scale = seg.scale ?? 3.0;
+    const count = Math.max(2, Math.floor(length / spacing) + 1);
+    for (let i = 0; i < count; i++) {
+      const t = count === 1 ? 0 : i / (count - 1);
+      out.push({
+        tex: seg.tex,
+        url,
+        x: x1 + dx * t,
+        z: z1 + dz * t,
+        scale,
+      });
+    }
+  }
+  return out;
+}
+
+// ── Sub-Komponenten ──────────────────────────────────────────────────────
+
+interface GroundProps {
+  url: string;
+  width: number;
+  depth: number;
+  cx: number;
+  cz: number;
+  tileSize: number;
+}
+
+function Ground({ url, width, depth, cx, cz, tileSize }: GroundProps) {
+  const tex = useTexture(url);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(Math.max(1, width / tileSize), Math.max(1, depth / tileSize));
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, 0, cz]} receiveShadow>
+      <planeGeometry args={[width, depth]} />
+      <meshStandardMaterial map={tex} roughness={0.95} />
+    </mesh>
+  );
+}
+
+function SolidGround({
+  width,
+  depth,
+  cx,
+  cz,
+}: {
+  width: number;
+  depth: number;
+  cx: number;
+  cz: number;
+}) {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, 0, cz]} receiveShadow>
+      <planeGeometry args={[width, depth]} />
+      <meshStandardMaterial color="#4a3a28" roughness={1} />
+    </mesh>
+  );
+}
+
+interface IsoSpriteProps {
+  url: string;
+  x: number;
+  z: number;
+  scale: number;
+}
+
+/**
+ * Fixed-iso Sprite — eine Plane, die exakt im Kamera-Pitch geneigt ist und
+ * sich NIE dreht (anders als ein Billboard). Dadurch wirken die Sprites wie
+ * pre-baked D2-Iso-Art und nicht "papp-aufgeklebt".
+ *
+ * Aufbau:
+ *   • Group am Boden bei (x, 0, z), gekippt um SPRITE_TILT um die X-Achse.
+ *   • Child-Mesh lokal verschoben um (0, scale/2, 0) → die Plane steht auf
+ *     dem Boden mit korrektem "Footprint" bei (x, z).
+ */
+function IsoSprite({ url, x, z, scale }: IsoSpriteProps) {
+  const map = useTexture(url);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.magFilter = THREE.NearestFilter;
+  map.minFilter = THREE.NearestFilter;
+  map.needsUpdate = true;
+
+  return (
+    <group position={[x, 0, z]} rotation={[SPRITE_TILT, 0, 0]}>
+      <mesh position={[0, scale / 2, 0]}>
+        <planeGeometry args={[scale, scale]} />
+        <meshBasicMaterial
+          map={map}
+          transparent
+          alphaTest={0.3}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
       </mesh>
-
-      {/* Grid lines (covers the wilderness area). */}
-      <gridHelper
-        args={[WORLD_BOUND * 2, (WORLD_BOUND * 2) / GRID_SPACING, "#2a2e3a", "#222638"]}
-        position={[0, 0.01, 0]}
-      />
-
-      {/* Grid dots (skip dots inside the town footprint to keep the city clean). */}
-      {dots.map((d) => {
-        const inTown =
-          d.x >= TOWN_MIN_X && d.x <= TOWN_MAX_X && d.z >= TOWN_MIN_Z && d.z <= TOWN_MAX_Z;
-        if (inTown) return null;
-        const key = `${d.x},${d.z}`;
-        const occupied = occupiedSet.has(key);
-        return (
-          <mesh
-            key={key}
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[d.x, 0.02, d.z]}
-            geometry={dotGeo}
-          >
-            <meshBasicMaterial color={occupied ? "#ffd700" : "#3a3e4a"} />
-          </mesh>
-        );
-      })}
-    </>
+    </group>
   );
 }

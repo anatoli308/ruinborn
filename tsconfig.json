@@ -21,6 +21,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "crates/ruinborn-game/data/asset_catalog.json"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -2,10 +2,9 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameStore } from "../../store/gameStore";
+import { CAMERA_OFFSET } from "./cameraConfig";
 
-const CAMERA_OFFSET = new THREE.Vector3(0, 15, 8.5);
-
-/** Smooth follow camera that tracks the player */
+/** Smooth follow camera that tracks the player at a fixed iso offset. */
 export default function FollowCamera() {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null!);
   const targetBase = useRef(new THREE.Vector3());

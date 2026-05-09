@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameStore } from "../../store/gameStore";
 
@@ -20,8 +20,10 @@ const FRAME_URLS: string[] = Object.keys(FRAME_FILES)
   .map((k) => FRAME_FILES[k]);
 
 const FRAME_DURATION_MS = 150;
-const SPRITE_HEIGHT = 2.4;
-const SPRITE_BASE_Y = 0.05;
+/** Diameter of the floor decal in world units. */
+const DECAL_SIZE = 3.0;
+/** Lift slightly above the ground plane to avoid z-fighting with terrain. */
+const DECAL_Y = 0.03;
 
 function createPixelTexture(url: string): THREE.Texture {
   const tex = new THREE.Texture();
@@ -42,13 +44,15 @@ interface WaypointProps {
   position: [number, number, number];
 }
 
+/**
+ * Flat ground decal rendered in the XZ plane (Diablo 2-style waypoint rune).
+ * No camera billboarding — the disc lies flat on the floor and reads naturally
+ * from the isometric view.
+ */
 function Waypoint({ position }: WaypointProps) {
-  const groupRef = useRef<THREE.Group>(null!);
-  const meshRef = useRef<THREE.Mesh>(null!);
   const matRef = useRef<THREE.MeshBasicMaterial>(null!);
   const elapsedRef = useRef(Math.random() * FRAME_DURATION_MS * FRAME_URLS.length);
   const setWaypointMenuOpen = useGameStore((s) => s.setWaypointMenuOpen);
-  const { camera } = useThree();
 
   // One Texture per frame so we can swap `material.map` cheaply.
   const textures = useMemo(() => FRAME_URLS.map(createPixelTexture), []);
@@ -71,18 +75,6 @@ function Waypoint({ position }: WaypointProps) {
       mat.map = tex;
       mat.needsUpdate = true;
     }
-
-    // Scale plane to source aspect ratio so it doesn't look squashed.
-    const img = tex.image as HTMLImageElement | undefined;
-    const mesh = meshRef.current;
-    if (mesh && img && img.naturalWidth > 0) {
-      const aspect = img.naturalWidth / img.naturalHeight;
-      mesh.scale.set(SPRITE_HEIGHT * aspect, SPRITE_HEIGHT, 1);
-    }
-
-    // Y-axis billboard.
-    const g = groupRef.current;
-    if (g) g.lookAt(camera.position.x, g.position.y, camera.position.z);
   });
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
@@ -100,24 +92,22 @@ function Waypoint({ position }: WaypointProps) {
   };
 
   return (
-    <group ref={groupRef} position={position}>
-      <mesh
-        ref={meshRef}
-        position={[0, SPRITE_HEIGHT / 2, 0]}
-        onClick={handleClick}
-        onPointerOver={handleOver}
-        onPointerOut={handleOut}
-      >
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial
-          ref={matRef}
-          transparent
-          alphaTest={0.5}
-          depthWrite
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-    </group>
+    <mesh
+      position={position}
+      rotation={[-Math.PI / 2, 0, 0]}
+      onClick={handleClick}
+      onPointerOver={handleOver}
+      onPointerOut={handleOut}
+    >
+      <planeGeometry args={[DECAL_SIZE, DECAL_SIZE]} />
+      <meshBasicMaterial
+        ref={matRef}
+        transparent
+        alphaTest={0.5}
+        depthWrite={false}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
 }
 
@@ -126,7 +116,7 @@ export default function Waypoints() {
   return (
     <>
       {WAYPOINTS.map((wp) => (
-        <Waypoint key={wp.id} position={[wp.x, SPRITE_BASE_Y, wp.z]} />
+        <Waypoint key={wp.id} position={[wp.x, DECAL_Y, wp.z]} />
       ))}
     </>
   );

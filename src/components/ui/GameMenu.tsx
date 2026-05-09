@@ -34,7 +34,7 @@ export default function GameMenu() {
       <button
         type="button"
         className="game-menu__toggle"
-        title="Menü"
+        title="Menu"
         onClick={() => setOpen((o) => !o)}
       >
         ☰

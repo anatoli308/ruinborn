@@ -54,7 +54,7 @@ export default function TradingPostMesh({ market }: { market: PlayerMarket }) {
         anchorX="center"
         anchorY="bottom"
       >
-        von {market.ownerName}
+        by {market.ownerName}
       </Text>
     </group>
   );

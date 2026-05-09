@@ -29,6 +29,7 @@ import type {
   ZoneId,
   ZoneKind,
 } from "../types";
+import type { SkillTargetingKind } from "../data/classes";
 
 // ── Server Snapshot Shape (mirrors Rust PlayerSnapshot) ─────
 
@@ -333,11 +334,11 @@ interface GameStore {
   /** Currently focused enemy (Tab/click). Cleared when the enemy dies or despawns. */
   targetEnemyId: string | null;
 
-  /** Transient error toast (e.g. "Ziel außer Reichweite"). Cleared automatically by the Toast component. */
+  /** Transient error toast (e.g. "Target out of range"). Cleared automatically by the Toast component. */
   lastError: { message: string; ts: number } | null;
-  /** Range (world units) of the skill currently hovered in the action bar. `null` = hide indicator. */
-  hoveredSkillRange: number | null;
-  setHoveredSkillRange: (range: number | null) => void;
+  /** Currently hovered skill descriptor — drives the world-space range indicator. */
+  hoveredSkill: { range: number; kind: SkillTargetingKind } | null;
+  setHoveredSkill: (skill: { range: number; kind: SkillTargetingKind } | null) => void;
   clearLastError: () => void;
 
   // Damage model (Phase 3)
@@ -742,7 +743,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   targetEnemyId: null,
 
   lastError: null,
-  hoveredSkillRange: null,
+  hoveredSkill: null,
 
   resistances: { physical: 0, fire: 0, cold: 0, lightning: 0, poison: 0, magical: 0 },
   dots: [],
@@ -955,8 +956,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ targetEnemyId: id });
   },
 
-  setHoveredSkillRange: (range: number | null) => {
-    set({ hoveredSkillRange: range });
+  setHoveredSkill: (skill) => {
+    set({ hoveredSkill: skill });
   },
 
   clearLastError: () => {

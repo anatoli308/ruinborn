@@ -1,0 +1,92 @@
+{
+  "_comment": "Enemy archetype definitions. Edit these to tweak stats — no Rust recompile needed for value changes (server reloads on restart). Adding a new archetype: copy a block, change `id`, register in `spawn_rules` for the zones it should appear in. Time-denominated values are in 20 Hz combat ticks (50 ms each).",
+
+  "archetypes": [
+    {
+      "id": "zombie",
+      "label": "Zombie",
+      "atlas": "zombie",
+      "max_hp_base": 25.0,
+      "max_hp_per_level": 8.0,
+      "damage_base": 4.0,
+      "damage_per_level": 1.5,
+      "move_speed": 0.075,
+      "xp_base": 15,
+      "xp_per_level": 6,
+      "gold_min_base": 2,
+      "gold_min_per_level": 1,
+      "gold_max_base": 8,
+      "gold_max_per_level": 3,
+      "attack_damage_type": "physical",
+      "attack_cooldown_ticks": 30,
+      "poison_on_hit": { "damage_per_tick": 0.075, "ticks": 200 },
+      "resistances": { "physical": 0.0, "fire": -25.0, "cold": 10.0, "lightning": 0.0, "poison": 75.0, "magical": 0.0 },
+      "pack_size_min": 4,
+      "pack_size_max": 7,
+      "pack_radius": 5.0,
+      "ai": "goap"
+    },
+    {
+      "id": "skeleton",
+      "label": "Skelett",
+      "atlas": "skeleton",
+      "max_hp_base": 18.0,
+      "max_hp_per_level": 6.0,
+      "damage_base": 5.0,
+      "damage_per_level": 1.8,
+      "move_speed": 0.10,
+      "xp_base": 18,
+      "xp_per_level": 7,
+      "gold_min_base": 3,
+      "gold_min_per_level": 1,
+      "gold_max_base": 10,
+      "gold_max_per_level": 3,
+      "attack_damage_type": "physical",
+      "attack_cooldown_ticks": 30,
+      "poison_on_hit": null,
+      "resistances": { "physical": 25.0, "fire": 0.0, "cold": 50.0, "lightning": -25.0, "poison": 100.0, "magical": 0.0 },
+      "pack_size_min": 3,
+      "pack_size_max": 6,
+      "pack_radius": 4.5,
+      "ai": "goap"
+    },
+    {
+      "id": "fallen_one",
+      "label": "Fallener",
+      "atlas": "goblin",
+      "max_hp_base": 12.0,
+      "max_hp_per_level": 5.0,
+      "damage_base": 3.0,
+      "damage_per_level": 1.0,
+      "move_speed": 0.125,
+      "xp_base": 10,
+      "xp_per_level": 5,
+      "gold_min_base": 1,
+      "gold_min_per_level": 1,
+      "gold_max_base": 6,
+      "gold_max_per_level": 2,
+      "attack_damage_type": "fire",
+      "attack_cooldown_ticks": 25,
+      "poison_on_hit": null,
+      "resistances": { "physical": 0.0, "fire": 75.0, "cold": -50.0, "lightning": 0.0, "poison": 0.0, "magical": 25.0 },
+      "pack_size_min": 5,
+      "pack_size_max": 9,
+      "pack_radius": 4.0,
+      "ai": "goap"
+    }
+  ],
+
+  "_spawn_rules_comment": "Per-zone-kind weighted pick. `weight` is relative; higher = more likely. `level_min`/`level_max` clamp the rolled level for that zone.",
+  "spawn_rules": {
+    "wilderness": [
+      { "id": "zombie",     "weight": 6, "level_min": 1, "level_max": 3 },
+      { "id": "fallen_one", "weight": 4, "level_min": 1, "level_max": 3 }
+    ],
+    "dungeon": [
+      { "id": "skeleton",   "weight": 5, "level_min": 3, "level_max": 6 },
+      { "id": "zombie",     "weight": 4, "level_min": 3, "level_max": 5 },
+      { "id": "fallen_one", "weight": 2, "level_min": 4, "level_max": 6 }
+    ],
+    "town": []
+  }
+}

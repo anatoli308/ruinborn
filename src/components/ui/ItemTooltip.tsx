@@ -5,7 +5,7 @@ interface Props {
   item: Item;
 }
 
-/** Hover-Tooltip im D2-Stil: Name (rarity color), Slot/ilvl, Affixes. */
+/** D2-style hover tooltip: name (rarity color), slot/ilvl, affixes. */
 export default function ItemTooltip({ item }: Props) {
   const color = rarityColor(item.rarity);
   return (
@@ -25,7 +25,7 @@ export default function ItemTooltip({ item }: Props) {
           ))}
         </ul>
       )}
-      <div className="item-tooltip__value">Wert: {item.vendorValue} G</div>
+      <div className="item-tooltip__value">Value: {item.vendorValue} G</div>
     </div>
   );
 }

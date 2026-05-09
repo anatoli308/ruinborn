@@ -1,0 +1,68 @@
+{
+  "_doc": "Biome-Presets fuer den Client-ZoneRenderer. Jede Zone in zone_layouts.json verweist via 'biome' auf einen Eintrag hier. Felder duerfen pro Zone ueberschrieben werden. Texturen sind PNG-Dateinamen (ohne Endung) aus src/assets/map/.",
+  "biomes": {
+    "town_camp": {
+      "ground": "ground_grassland_03",
+      "ground_tile_size": 4.0,
+      "fog_color": "#1a1a2e",
+      "fog_near": 30,
+      "fog_far": 90,
+      "ambient_tint": "#8899aa",
+      "directional_tint": "#ffeedd"
+    },
+    "grassland": {
+      "ground": "ground_grassland_05",
+      "ground_tile_size": 4.0,
+      "fog_color": "#15253a",
+      "fog_near": 25,
+      "fog_far": 80,
+      "ambient_tint": "#7a8aa0",
+      "directional_tint": "#ffe4b5"
+    },
+    "dark_wood": {
+      "ground": "ground_grassland_07",
+      "ground_tile_size": 4.0,
+      "fog_color": "#0a1410",
+      "fog_near": 15,
+      "fog_far": 55,
+      "ambient_tint": "#3a4838",
+      "directional_tint": "#88aa88"
+    },
+    "tomb_outdoor": {
+      "ground": "ground_grassland_08",
+      "ground_tile_size": 4.0,
+      "fog_color": "#1a1818",
+      "fog_near": 18,
+      "fog_far": 60,
+      "ambient_tint": "#6a5a55",
+      "directional_tint": "#d8c8b0"
+    },
+    "cave": {
+      "ground": "dirt_texture2",
+      "ground_tile_size": 3.0,
+      "fog_color": "#080606",
+      "fog_near": 10,
+      "fog_far": 40,
+      "ambient_tint": "#2a2018",
+      "directional_tint": "#aa6633"
+    },
+    "dungeon": {
+      "ground": "dirt_cell_tile",
+      "ground_tile_size": 2.0,
+      "fog_color": "#0a0808",
+      "fog_near": 12,
+      "fog_far": 45,
+      "ambient_tint": "#332a2a",
+      "directional_tint": "#aa8866"
+    },
+    "monastery": {
+      "ground": "ground_desert_01",
+      "ground_tile_size": 3.0,
+      "fog_color": "#1a1610",
+      "fog_near": 20,
+      "fog_far": 70,
+      "ambient_tint": "#7a6a55",
+      "directional_tint": "#ffd9a8"
+    }
+  }
+}

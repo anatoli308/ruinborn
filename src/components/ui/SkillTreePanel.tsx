@@ -5,12 +5,12 @@ import SkillIconView from "./SkillIconView";
 import type { SkillDef } from "../../types";
 
 const EFFECT_LABEL: Record<SkillDef["effect"], string> = {
-  direct_damage: "Direktschaden",
+  direct_damage: "Direct damage",
   aoe_around: "AoE",
-  damage_over_time: "Gift-DoT",
-  teleport: "Bewegung",
-  self_buff: "Selbst-Buff",
-  placeholder: "Platzhalter",
+  damage_over_time: "DoT",
+  teleport: "Movement",
+  self_buff: "Self buff",
+  placeholder: "Placeholder",
 };
 
 /**
@@ -72,7 +72,7 @@ export default function SkillTreePanel() {
     if (def.effect === "direct_damage" || def.effect === "damage_over_time") {
       targetEnemyId = nearestEnemyId();
       if (!targetEnemyId) {
-        setFeedback("Kein Ziel in Reichweite.");
+        setFeedback("No target in range.");
         return;
       }
     } else if (def.effect === "teleport") {
@@ -103,7 +103,7 @@ export default function SkillTreePanel() {
               {info.icon} Fertigkeiten — {info.name}
             </h2>
             <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-              Stufe {level} · Offene Punkte:{" "}
+              Level {level} · Skill points:{" "}
               <span style={{ color: "#facc15", fontWeight: 700 }}>
                 {unspent}
               </span>
@@ -166,11 +166,11 @@ export default function SkillTreePanel() {
                     <span>{sk.name}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "#9ca3af" }}>
-                    Stufe {lvl}
+                    Level {lvl}
                   </div>
                 </div>
                 <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>
-                  {EFFECT_LABEL[sk.effect]} · benötigt Lv {sk.requiresLevel}
+                  {EFFECT_LABEL[sk.effect]} · requires Lv {sk.requiresLevel}
                 </div>
                 <div style={{ fontSize: 12, color: "#cbd5e1", minHeight: 32 }}>
                   {sk.description}
@@ -264,11 +264,11 @@ export default function SkillTreePanel() {
                       </button>
                     ))}
                     <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 6 }}>
-                      Maus:
+                      Mouse:
                     </span>
                     {([
-                      { label: "L", btn: 0 as const, title: "Linksklick" },
-                      { label: "R", btn: 1 as const, title: "Rechtsklick" },
+                      { label: "L", btn: 0 as const, title: "Left click" },
+                      { label: "R", btn: 1 as const, title: "Right click" },
                     ]).map((m) => (
                       <button
                         key={m.label}

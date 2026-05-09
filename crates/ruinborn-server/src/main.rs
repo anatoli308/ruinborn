@@ -36,9 +36,11 @@ fn parse_equip_slot(name: &str) -> Option<EquipSlotName> {
 
 /// Server configuration
 const BIND_ADDR: &str = "0.0.0.0:9000";
-const NETWORK_TICK_MS: u64 = 50; // 20 Hz — broadcast rate
-const ECONOMY_TICK_INTERVAL: u64 = 20; // economy advances every 20 network ticks (= 1 second)
-const DB_SAVE_INTERVAL: u64 = 30; // save to DB every 30 economy ticks (= 30 seconds)
+/// Single world tick — drives combat simulation and state broadcast (20 Hz).
+/// This is our GameClock equivalent of the C++ reference server.
+const WORLD_TICK_MS: u64 = 50;
+/// Persist game state to DB every N world ticks (= 30 s @ 20 Hz).
+const DB_SAVE_TICKS: u64 = 600;
 
 /// Per-connection sender handle
 type Tx = mpsc::UnboundedSender<Message>;
@@ -121,36 +123,35 @@ async fn main() {
     }
 }
 
-// ── Tick Loop ─────────────────────────────────────────────────
+// ── World Tick ────────────────────────────────────────────────
 
-/// World simulation: 20 Hz network broadcast, economy advances every ~1 second
+/// Single 20 Hz world tick — advances combat simulation (enemy AI, cooldowns,
+/// DoTs, respawn timers) and broadcasts state to all clients. The 1 Hz
+/// economy tick has been removed (YAGNI); reactivate `advance_economy_tick`
+/// in `ruinborn-game` if/when missions, market decay, or population
+/// maintenance come back online.
 async fn tick_loop(server: Arc<Server>) {
-    let mut interval = tokio::time::interval(Duration::from_millis(NETWORK_TICK_MS));
-    let mut economy_counter: u64 = 0;
-    let mut save_counter: u64 = 0;
+    let mut interval = tokio::time::interval(Duration::from_millis(WORLD_TICK_MS));
+    let mut tick_count: u64 = 0;
 
     loop {
         interval.tick().await;
-        economy_counter += 1;
+        tick_count = tick_count.wrapping_add(1);
 
-        // Advance economy simulation at 1 Hz
-        if economy_counter >= ECONOMY_TICK_INTERVAL {
-            economy_counter = 0;
-            save_counter += 1;
-
+        // Combat sim every world tick: AI, cooldowns, DoTs, respawn timers.
+        {
             let mut game = server.game.write().await;
-            game::advance_tick(&mut game);
+            game::advance_combat_tick(&mut game);
+        }
 
-            // Periodic DB save
-            if save_counter >= DB_SAVE_INTERVAL {
-                save_counter = 0;
-                if let Err(e) = db::save_game_state(&server.db, &game).await {
-                    error!("Failed to save game state: {}", e);
-                }
+        // Periodic DB save — read lock only, does not block the next sim step.
+        if tick_count % DB_SAVE_TICKS == 0 {
+            let game = server.game.read().await;
+            if let Err(e) = db::save_game_state(&server.db, &game).await {
+                error!("Failed to save game state: {}", e);
             }
         }
 
-        // Broadcast per-player snapshots at 20 Hz
         broadcast_state(&server).await;
     }
 }
@@ -227,7 +228,7 @@ async fn handle_connection(
                         // Create player in game state
                         {
                             let mut game = server.game.write().await;
-                            let new_player = game::create_player(&pid, &name);
+                            let new_player = game::create_player(&pid, &name, &game.zones.clone());
                             game.players.insert(pid.clone(), new_player);
                         }
 
@@ -542,7 +543,7 @@ async fn handle_connection(
                                 None => {
                                     let resp = ServerMessage::ActionResult {
                                         success: false,
-                                        message: "\u{274C} Unbekannter Equipment-Slot.".into(),
+                                        message: "\u{274C} Unknown equipment slot.".into(),
                                     };
                                     if let Ok(json) = serde_json::to_string(&resp) {
                                         let _ = tx.send(Message::Text(json.into()));
@@ -621,22 +622,11 @@ async fn handle_connection(
                     ClientMessage::TravelWaypoint { zone } => {
                         if let Some(ref pid) = player_id {
                             let mut game = server.game.write().await;
-                            let target = match zone.as_str() {
-                                "town" => game::ZoneId::Town,
-                                "wilderness" => game::ZoneId::Wilderness,
-                                "burial_grounds" => game::ZoneId::BurialGrounds,
-                                _ => {
-                                    let resp = ServerMessage::ActionResult {
-                                        success: false,
-                                        message: "\u{274C} Unbekannte Zone.".into(),
-                                    };
-                                    if let Ok(json) = serde_json::to_string(&resp) {
-                                        let _ = tx.send(Message::Text(json.into()));
-                                    }
-                                    continue;
-                                }
-                            };
-                            let result = game::travel_waypoint(&mut game, pid, target);
+                            // Phase 6: zones are data-driven — just pass the
+                            // string through. `travel_waypoint` rejects
+                            // unknown ids with a friendly error message.
+                            let target = game::ZoneId::from(zone.as_str());
+                            let result = game::travel_waypoint(&mut game, pid, &target);
                             let resp = ServerMessage::ActionResult {
                                 success: result.success,
                                 message: result.message,
@@ -712,7 +702,7 @@ async fn handle_connection(
                                 None => {
                                     let resp = ServerMessage::ActionResult {
                                         success: false,
-                                        message: "Unbekannte Klasse.".into(),
+                                        message: "Unknown class.".into(),
                                     };
                                     if let Ok(json) = serde_json::to_string(&resp) {
                                         let _ = tx.send(Message::Text(json.into()));

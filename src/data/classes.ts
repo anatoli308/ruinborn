@@ -5,24 +5,24 @@ import { SKILL_ID_TO_ICON } from "../assets/spell_icons";
 export const CLASS_CATALOG: ClassInfo[] = [
   {
     id: "barbarian",
-    name: "Barbar",
-    tagline: "Roher Krieger — Stärke & Vitalität",
+    name: "Barbarian",
+    tagline: "Brutal warrior — Strength & Vitality",
     icon: "🪓",
     baseStats: { strength: 30, dexterity: 20, vitality: 25, energy: 10 },
     starterSkills: ["bash"],
   },
   {
     id: "sorceress",
-    name: "Zauberin",
-    tagline: "Elementarmagierin — Energie & Mana",
+    name: "Sorceress",
+    tagline: "Elemental mage — Energy & Mana",
     icon: "🔮",
     baseStats: { strength: 10, dexterity: 25, vitality: 10, energy: 35 },
     starterSkills: ["fireball"],
   },
   {
     id: "necromancer",
-    name: "Totenbeschwörer",
-    tagline: "Knochenmagier — Geister & Flüche",
+    name: "Necromancer",
+    tagline: "Bone mage — spirits & curses",
     icon: "💀",
     baseStats: { strength: 15, dexterity: 25, vitality: 15, energy: 25 },
     starterSkills: ["bone_spear"],
@@ -48,11 +48,11 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: "physical",
     tags: ["melee"],
     icon: SKILL_ID_TO_ICON.bash,
-    description: "Wuchtiger Hieb gegen ein Ziel.",
+    description: "Heavy strike against a single target.",
   },
   {
     id: "cleave",
-    name: "Spaltung",
+    name: "Cleave",
     classId: "barbarian",
     manaCost: 6,
     cooldownTicks: 14,
@@ -62,11 +62,11 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: "physical",
     tags: ["melee"],
     icon: SKILL_ID_TO_ICON.cleave,
-    description: "Trifft alle Gegner im Nahbereich.",
+    description: "Hits all enemies in melee range.",
   },
   {
     id: "battle_cry",
-    name: "Kriegsruf",
+    name: "Battle Cry",
     classId: "barbarian",
     manaCost: 8,
     cooldownTicks: 60,
@@ -76,12 +76,12 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: null,
     tags: [],
     icon: SKILL_ID_TO_ICON.battle_cry,
-    description: "Brüllen — kurzfristiger Selbst-Buff.",
+    description: "A roar — short self-buff.",
   },
   // Sorceress
   {
     id: "fireball",
-    name: "Feuerball",
+    name: "Fireball",
     classId: "sorceress",
     manaCost: 5,
     cooldownTicks: 8,
@@ -91,11 +91,11 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: "fire",
     tags: ["spell", "ranged"],
     icon: SKILL_ID_TO_ICON.fireball,
-    description: "Schleudert eine brennende Kugel.",
+    description: "Hurls a burning orb.",
   },
   {
     id: "frost_nova",
-    name: "Frostnova",
+    name: "Frost Nova",
     classId: "sorceress",
     manaCost: 9,
     cooldownTicks: 24,
@@ -105,7 +105,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: "cold",
     tags: ["spell"],
     icon: "❄️",
-    description: "Eis-Explosion um die Zauberin.",
+    description: "Ice explosion around the sorceress.",
   },
   {
     id: "teleport",
@@ -119,12 +119,12 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: null,
     tags: ["spell"],
     icon: "✨",
-    description: "Springt zu einer Zielposition.",
+    description: "Jumps to a target location.",
   },
   // Necromancer
   {
     id: "bone_spear",
-    name: "Knochenspeer",
+    name: "Bone Spear",
     classId: "necromancer",
     manaCost: 4,
     cooldownTicks: 8,
@@ -134,11 +134,11 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: "magical",
     tags: ["spell", "ranged"],
     icon: SKILL_ID_TO_ICON.bone_spear,
-    description: "Schießt einen magischen Knochenspeer.",
+    description: "Fires a magical bone spear.",
   },
   {
     id: "raise_skeleton",
-    name: "Skelett beschwören",
+    name: "Raise Skeleton",
     classId: "necromancer",
     manaCost: 10,
     cooldownTicks: 30,
@@ -148,11 +148,11 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: null,
     tags: ["summoning"],
     icon: SKILL_ID_TO_ICON.raise_skeleton,
-    description: "Beschwört einen Skelettkrieger (kommt in Phase 4).",
+    description: "Summons a skeleton warrior (coming in Phase 4).",
   },
   {
     id: "amplify_damage",
-    name: "Giftwolke",
+    name: "Poison Cloud",
     classId: "necromancer",
     manaCost: 6,
     cooldownTicks: 15,
@@ -162,7 +162,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     damageType: "poison",
     tags: ["spell", "trap"],
     icon: "☠️",
-    description: "Vergiftet einen Gegner über mehrere Sekunden.",
+    description: "Poisons an enemy over several seconds.",
   },
 ];
 
@@ -172,4 +172,39 @@ export function skillDef(id: string): SkillDef | undefined {
 
 export function skillsForClass(id: ClassId): SkillDef[] {
   return SKILL_CATALOG.filter((s) => s.classId === id);
+}
+
+// ─── Targeting kind ──────────────────────────────────────────────────────
+
+/**
+ * How a skill should be visualized in the world while the player is
+ * preparing to cast it. Drives the on-ground range indicator.
+ */
+export type SkillTargetingKind =
+  /** No indicator (self-only buff or placeholder). */
+  | "self"
+  /** Ring around the player at radius=range (melee-targeted). */
+  | "circle"
+  /** Filled disc around the player (AoE around self). */
+  | "aoe_around_self"
+  /** Directional ray from player toward cursor, capped at range. */
+  | "skillshot";
+
+/**
+ * Single source of truth for derived targeting kind. Any UI that needs to
+ * know "ring vs line vs disc vs nothing" must call this — never duplicate
+ * the rules.
+ */
+export function targetingKind(skill: SkillDef): SkillTargetingKind {
+  if (skill.range <= 0) return "self";
+  if (skill.effect === "self_buff" || skill.effect === "placeholder") return "self";
+  if (skill.effect === "aoe_around") return "aoe_around_self";
+  if (skill.effect === "teleport") return "skillshot";
+  if (skill.effect === "direct_damage" || skill.effect === "damage_over_time") {
+    const isRanged =
+      skill.tags.includes("ranged") ||
+      (skill.tags.includes("spell") && !skill.tags.includes("melee"));
+    return isRanged ? "skillshot" : "circle";
+  }
+  return "self";
 }

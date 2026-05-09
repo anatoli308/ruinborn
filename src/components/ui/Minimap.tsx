@@ -4,14 +4,14 @@ import { useGameStore } from "../../store/gameStore";
 const MINIMAP_SIZE = 140;
 const WORLD_HALF = 100; // world coordinates run -100..100
 
-/** Mini-map showing player, markets, enemies and loot. Waypoint stones are clickable in the 3D world, not here. */
+/** Mini-map showing the player, other players and markets. Enemies and loot are
+ * intentionally hidden — combat awareness comes from the 3D world, not radar. */
 export default function Minimap() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerX = useGameStore((s) => s.playerX);
   const playerZ = useGameStore((s) => s.playerZ);
   const playerMarkets = useGameStore((s) => s.playerMarkets);
-  const enemies = useGameStore((s) => s.enemies);
-  const lootDrops = useGameStore((s) => s.lootDrops);
+  const otherPlayers = useGameStore((s) => s.otherPlayers);
   const zoneId = useGameStore((s) => s.zone);
   const zones = useGameStore((s) => s.zones);
 
@@ -51,21 +51,14 @@ export default function Minimap() {
     ctx.lineWidth = 1;
     ctx.strokeRect((-30 + WORLD_HALF) * scale, (-30 + WORLD_HALF) * scale, 60 * scale, 60 * scale);
 
-    // Enemies
-    for (const e of enemies) {
-      if (e.state === "dead") continue;
-      const ex = (e.x + WORLD_HALF) * scale;
-      const ez = (e.z + WORLD_HALF) * scale;
-      ctx.fillStyle = "#e74c3c";
-      ctx.fillRect(ex - 1, ez - 1, 3, 3);
-    }
-
-    // Loot drops
-    for (const l of lootDrops) {
-      const lx = (l.x + WORLD_HALF) * scale;
-      const lz = (l.z + WORLD_HALF) * scale;
-      ctx.fillStyle = "#ffaa00";
-      ctx.fillRect(lx, lz, 2, 2);
+    // Other players
+    for (const p of otherPlayers) {
+      const ox = (p.x + WORLD_HALF) * scale;
+      const oz = (p.z + WORLD_HALF) * scale;
+      ctx.fillStyle = "#60a5fa";
+      ctx.beginPath();
+      ctx.arc(ox, oz, 2.5, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // Player markets
@@ -87,7 +80,7 @@ export default function Minimap() {
     // Border
     ctx.strokeStyle = "#333";
     ctx.strokeRect(0, 0, w, h);
-  }, [playerX, playerZ, playerMarkets, enemies, lootDrops]);
+  }, [playerX, playerZ, playerMarkets, otherPlayers]);
 
   useEffect(() => {
     draw();

@@ -2,19 +2,23 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useGameStore } from "../../store/gameStore";
-import type { Enemy, EnemyKind } from "../../types";
+import type { Enemy } from "../../types";
 import FlareSprite, { angleToFlareDirection } from "./FlareSprite";
 import { getNpcFlareLayer, NPC_FLARE_ATLASES } from "../../assets/npc/flare";
 
-/** Map server EnemyKind → NPC atlas name in `assets/npc/atlases/`. */
-const KIND_TO_ATLAS: Record<EnemyKind, string> = {
+/**
+ * Map server enemy archetype id → NPC atlas name in `assets/npc/atlases/`.
+ * Unknown ids fall back to the id itself (so adding a new server-side
+ * archetype that happens to have a matching client atlas Just Works).
+ */
+const KIND_TO_ATLAS: Record<string, string> = {
   zombie: "zombie",
   skeleton: "skeleton",
   fallen_one: "goblin",
 };
 
-/** Smoothing rate for enemy position lerp. Higher = snappier. */
-const POSITION_SMOOTH_RATE = 14;
+/** Smoothing rate for enemy position lerp. */
+const POSITION_SMOOTH_RATE = 7;
 /** Distance above which we snap (teleport / respawn). */
 const POSITION_SNAP_DISTANCE = 8;
 
@@ -24,7 +28,6 @@ function pickAnimation(atlasName: string, desired: string): string {
   if (!atlas) return desired;
   if (atlas.animations[desired]) return desired;
   if (atlas.animations.stance) return "stance";
-  // Last resort: first available animation.
   const first = Object.keys(atlas.animations)[0];
   return first ?? desired;
 }
@@ -33,6 +36,11 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
   const sendAttack = useGameStore((s) => s.sendAttack);
   const setTargetEnemy = useGameStore((s) => s.setTargetEnemy);
   const targetEnemyId = useGameStore((s) => s.targetEnemyId);
+  // Position sources for facing — the enemy's AI target on the server.
+  const ownPlayerId = useGameStore((s) => s.playerId);
+  const ownX = useGameStore((s) => s.playerX);
+  const ownZ = useGameStore((s) => s.playerZ);
+  const otherPlayers = useGameStore((s) => s.otherPlayers);
 
   const groupRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
@@ -45,11 +53,9 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
     z: enemy.z,
     init: false,
   });
-  /** Last frame's position so we can derive a velocity for facing. */
-  const lastDisplayed = useRef<{ x: number; z: number }>({ x: enemy.x, z: enemy.z });
 
   const isTarget = targetEnemyId === enemy.id;
-  const atlasName = KIND_TO_ATLAS[enemy.kind] ?? "zombie";
+  const atlasName = KIND_TO_ATLAS[enemy.kind] ?? enemy.kind;
 
   // Layers list is just the single body atlas — NPCs are flat sprites.
   const layers = useMemo(() => [atlasName], [atlasName]);
@@ -60,38 +66,58 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
     if (!displayed.current.init) {
       displayed.current.x = enemy.x;
       displayed.current.z = enemy.z;
-      lastDisplayed.current.x = enemy.x;
-      lastDisplayed.current.z = enemy.z;
       displayed.current.init = true;
     }
 
-    const dx = enemy.x - displayed.current.x;
-    const dz = enemy.z - displayed.current.z;
-    const dist = Math.hypot(dx, dz);
+    // ── Position smoothing ───────────────────────────────────────────────
+    const lagX = enemy.x - displayed.current.x;
+    const lagZ = enemy.z - displayed.current.z;
+    const lagDist = Math.hypot(lagX, lagZ);
 
-    if (dist > POSITION_SNAP_DISTANCE) {
+    if (lagDist > POSITION_SNAP_DISTANCE) {
       displayed.current.x = enemy.x;
       displayed.current.z = enemy.z;
     } else {
-      // Frame-rate independent exponential smoothing.
       const t = 1 - Math.exp(-POSITION_SMOOTH_RATE * delta);
-      displayed.current.x += dx * t;
-      displayed.current.z += dz * t;
+      displayed.current.x += lagX * t;
+      displayed.current.z += lagZ * t;
     }
 
-    // Derive animation + facing from displayed velocity.
-    const vx = displayed.current.x - lastDisplayed.current.x;
-    const vz = displayed.current.z - lastDisplayed.current.z;
-    const speed = Math.hypot(vx, vz);
-    const moving = speed > 0.001;
-    if (moving) {
-      const facing = Math.atan2(vx, -vz);
-      directionRef.current = angleToFlareDirection(facing);
+    // ── Facing ──────────────────────────────────────────────────────────
+    // Resolve from the server-known target player (if any). This is rock-
+    // stable: even if the player circle-strafes, the enemy's `target_player_id`
+    // doesn't flip every frame — so the sprite holds a clean 8-direction
+    // facing instead of pinwheeling. If there is no target (idle), facing
+    // is frozen at its last value.
+    let targetX: number | null = null;
+    let targetZ: number | null = null;
+    if (enemy.targetPlayerId) {
+      if (enemy.targetPlayerId === ownPlayerId) {
+        targetX = ownX;
+        targetZ = ownZ;
+      } else {
+        const other = otherPlayers.find((p) => p.id === enemy.targetPlayerId);
+        if (other) {
+          targetX = other.x;
+          targetZ = other.z;
+        }
+      }
     }
-    animationRef.current = pickAnimation(atlasName, moving ? "run" : "stance");
+    if (targetX !== null && targetZ !== null) {
+      const dx = targetX - displayed.current.x;
+      const dz = targetZ - displayed.current.z;
+      if (dx * dx + dz * dz > 1e-4) {
+        const facing = Math.atan2(dx, -dz);
+        directionRef.current = angleToFlareDirection(facing);
+      }
+    }
 
-    lastDisplayed.current.x = displayed.current.x;
-    lastDisplayed.current.z = displayed.current.z;
+    // ── Animation ───────────────────────────────────────────────────────
+    // Source of truth is the server's enum, not lag-derived movement.
+    // Chase = run, everything else = stance. Attack frames blend back into
+    // stance for now (no dedicated attack anim hooked up).
+    const desired = enemy.state === "chase" ? "run" : "stance";
+    animationRef.current = pickAnimation(atlasName, desired);
 
     groupRef.current.position.set(displayed.current.x, 0.2, displayed.current.z);
 

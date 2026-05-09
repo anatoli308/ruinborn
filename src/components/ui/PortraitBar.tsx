@@ -1,38 +1,39 @@
 import { useGameStore } from "../../store/gameStore";
 import { classInfo } from "../../data/classes";
-import type { ClassId, EnemyKind, DamageType } from "../../types";
+import type { ClassId, DamageType } from "../../types";
 
 /**
  * D2-style cosmetic immunity hint per enemy archetype.
  * Server-authoritative resistances are not yet exposed per-enemy on the wire,
  * so this stays a static UI hint until the protocol grows that field.
+ * Unknown ids fall back to no immunities.
  */
-const KIND_IMMUNITIES: Record<EnemyKind, DamageType[]> = {
+const KIND_IMMUNITIES: Record<string, DamageType[]> = {
   zombie: ["poison"],
   skeleton: ["poison", "cold"],
   fallen_one: [],
 };
 
-const KIND_LABEL: Record<EnemyKind, string> = {
+const KIND_LABEL: Record<string, string> = {
   zombie: "Zombie",
-  skeleton: "Skelett",
-  fallen_one: "Fallener",
+  skeleton: "Skeleton",
+  fallen_one: "Fallen One",
 };
 
 const DAMAGE_LABEL: Record<DamageType, string> = {
-  physical: "Physisch",
-  fire: "Feuer",
-  cold: "Kälte",
-  lightning: "Blitz",
-  poison: "Gift",
-  magical: "Magie",
+  physical: "Physical",
+  fire: "Fire",
+  cold: "Cold",
+  lightning: "Lightning",
+  poison: "Poison",
+  magical: "Magic",
 };
 
 /** Some classes have a flavor name for their secondary resource. */
 function resourceLabel(classId: ClassId | null): string {
   switch (classId) {
     case "barbarian":
-      return "Wut";
+      return "Rage";
     case "necromancer":
     case "sorceress":
       return "Mana";
@@ -82,7 +83,7 @@ export function PlayerPortrait() {
 
   const cls = classId ? classInfo(classId) : null;
   const icon = cls?.icon ?? "🧝";
-  const name = playerName || "Held";
+  const name = playerName || "Hero";
   const xpPct =
     xpToNext > 0 ? Math.max(0, Math.min(1, xp / xpToNext)) : 0;
 
@@ -92,13 +93,13 @@ export function PlayerPortrait() {
       <div className="portrait__body">
         <div className="portrait__name">
           {name}
-          <span className="portrait__sub">Stufe {level}{cls ? ` · ${cls.name}` : ""}</span>
+          <span className="portrait__sub">Level {level}{cls ? ` · ${cls.name}` : ""}</span>
         </div>
-        <Bar value={hp} max={maxHp} color="#a31515" label="Leben" />
+        <Bar value={hp} max={maxHp} color="#a31515" label="Life" />
         <Bar value={mana} max={maxMana} color="#1d4ed8" label={resourceLabel(classId)} />
         <div
           className="portrait-bar portrait-bar--slim"
-          title={`Erfahrung: ${Math.floor(xp)} / ${Math.floor(xpToNext)}`}
+          title={`Experience: ${Math.floor(xp)} / ${Math.floor(xpToNext)}`}
         >
           <div
             className="portrait-bar__fill"
@@ -125,10 +126,10 @@ export function TargetPortrait() {
       <div className="portrait__icon portrait__icon--enemy" aria-hidden>💀</div>
       <div className="portrait__body">
         <div className="portrait__name">
-          {KIND_LABEL[enemy.kind]}
-          <span className="portrait__sub">Stufe {enemy.level}</span>
+          {KIND_LABEL[enemy.kind] ?? enemy.kind}
+          <span className="portrait__sub">Level {enemy.level}</span>
         </div>
-        <Bar value={enemy.hp} max={enemy.maxHp} color="#a31515" label="Leben" />
+        <Bar value={enemy.hp} max={enemy.maxHp} color="#a31515" label="Life" />
         {immunities.length > 0 ? (
           <div className="portrait__immune">
             Immun:{" "}
@@ -140,7 +141,7 @@ export function TargetPortrait() {
             ))}
           </div>
         ) : (
-          <div className="portrait__immune portrait__immune--none">Keine Immunitäten</div>
+          <div className="portrait__immune portrait__immune--none">No immunities</div>
         )}
       </div>
     </div>

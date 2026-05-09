@@ -1,0 +1,65 @@
+{
+  "_doc": "Pro-Zone-Layout. Pflichtfeld: 'biome'. Optional: 'ground' (override), 'props' (hand-platziert relativ zum Zone-Zentrum), 'walls' (Segmente die automatisch in einzelne Sprites aufgeloest werden). Achsen: +x = Ost (rechts), -z = vor der Kamera (sichtbar), +z = hinter der Kamera. Phase A: nur rogue_encampment ist authored.",
+  "zones": {
+    "rogue_encampment": {
+      "biome": "town_camp",
+      "ground": "ground_grassland_03",
+      "props": [
+        { "tex": "campfire_01",    "x":   0, "z":  -3, "scale": 2.5 },
+
+        { "tex": "tent_01",        "x": -10, "z":  -9, "scale": 5.0 },
+        { "tex": "tent_02",        "x":  10, "z":  -9, "scale": 5.0 },
+        { "tex": "huntertent1",    "x":  -7, "z":   5, "scale": 5.5 },
+        { "tex": "tent_01",        "x":   8, "z":   5, "scale": 5.0 },
+
+        { "tex": "Well_00000",     "x":   5, "z":  -1, "scale": 3.5 },
+
+        { "tex": "cabin_01",       "x": -20, "z": -16, "scale": 8.0 },
+        { "tex": "cabin_02",       "x":  20, "z": -16, "scale": 8.0 },
+        { "tex": "cabingraybrown", "x": -22, "z":  10, "scale": 7.0 },
+        { "tex": "cabin_01",       "x":  22, "z":  10, "scale": 7.0 },
+
+        { "tex": "sign_post_01",   "x":  -2, "z":  20, "scale": 2.0 }
+      ],
+      "walls": [
+        { "tex": "Barricade (1)", "from": [-32, -25], "to": [ 32, -25], "spacing": 3.0, "scale": 3.0 },
+
+        { "tex": "Barricade (1)", "from": [-32,  25], "to": [ -6,  25], "spacing": 3.0, "scale": 3.0 },
+        { "tex": "Barricade (1)", "from": [  6,  25], "to": [ 32,  25], "spacing": 3.0, "scale": 3.0 },
+
+        { "tex": "Barricade (1)", "from": [-32, -25], "to": [-32,  25], "spacing": 3.0, "scale": 3.0 },
+        { "tex": "Barricade (1)", "from": [ 32, -25], "to": [ 32,  25], "spacing": 3.0, "scale": 3.0 }
+      ]
+    },
+    "blood_moor":              { "biome": "grassland" },
+    "den_of_evil":             { "biome": "cave" },
+    "cold_plains":             { "biome": "grassland" },
+    "cave_l1":                 { "biome": "cave" },
+    "cave_l2":                 { "biome": "cave" },
+    "burial_grounds":          { "biome": "tomb_outdoor" },
+    "crypt":                   { "biome": "dungeon" },
+    "mausoleum":               { "biome": "dungeon" },
+    "stony_field":             { "biome": "tomb_outdoor" },
+    "tristram":                { "biome": "tomb_outdoor" },
+    "underground_passage_l1":  { "biome": "cave" },
+    "underground_passage_l2":  { "biome": "cave" },
+    "dark_wood":               { "biome": "dark_wood" },
+    "black_marsh":             { "biome": "dark_wood" },
+    "forgotten_tower":         { "biome": "dungeon" },
+    "tamoe_highland":          { "biome": "grassland" },
+    "the_pit_l1":              { "biome": "cave" },
+    "the_pit_l2":              { "biome": "cave" },
+    "monastery_gate":          { "biome": "monastery" },
+    "outer_cloister":          { "biome": "monastery" },
+    "barracks":                { "biome": "dungeon" },
+    "jail_l1":                 { "biome": "dungeon" },
+    "jail_l2":                 { "biome": "dungeon" },
+    "jail_l3":                 { "biome": "dungeon" },
+    "inner_cloister":          { "biome": "monastery" },
+    "cathedral":               { "biome": "monastery" },
+    "catacombs_l1":            { "biome": "dungeon" },
+    "catacombs_l2":            { "biome": "dungeon" },
+    "catacombs_l3":            { "biome": "dungeon" },
+    "catacombs_l4":            { "biome": "dungeon" }
+  }
+}
